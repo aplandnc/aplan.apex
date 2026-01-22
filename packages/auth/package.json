@@ -1,0 +1,10 @@
+{
+  "name": "@apex/auth",
+  "version": "0.1.0",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.8.7",
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}

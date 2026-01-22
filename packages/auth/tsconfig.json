@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "paths": {
+      "@apex/config": ["../config/src/index.ts"],
+      "@apex/config/*": ["../config/src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"]
+}
