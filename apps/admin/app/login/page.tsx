@@ -69,7 +69,7 @@ export default function LoginPage() {
       <div className={`${adminUi.card} max-w-md w-full space-y-8 p-8`}>
         <div className="text-center select-none">
           <img
-            src="/img/logo.svg"
+            src="/logo.svg"
             alt="APEX Logo"
             className="mx-auto block h-14 w-auto object-contain mb-4"
             draggable={false}
