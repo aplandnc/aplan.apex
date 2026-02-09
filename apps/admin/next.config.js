@@ -1,10 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-
-  experimental: {
-    externalDir: true,
-  },
+  transpilePackages: ['@apex/auth', '@apex/config', '@apex/ui'],
 }
 
 module.exports = nextConfig

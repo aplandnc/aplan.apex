@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
     "scripts": {
     "dev:admin": "pnpm --filter admin dev",
     "dev:staff": "pnpm --filter @apex/staff dev",
