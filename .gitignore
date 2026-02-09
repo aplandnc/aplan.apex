@@ -134,3 +134,20 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# IDE settings (optional)
+.vscode/
+.claude/
+
+# 복사본 파일 제외
+*복사본.tsx
+*복사본.js
+
+# Claude 설정 및 로그 파일 제외
+.claude/
+trace.txt
+staff-debug.tar.gz
+
+# 압축 파일 제외
+*.zip
+*.tar.gz

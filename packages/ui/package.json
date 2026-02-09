@@ -5,6 +5,7 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "exports": {
-    "./styles/globals.css": "./styles/globals.css"
+    "./styles/globals.css": "./styles/globals.css",
+    "./styles/*": "./styles/*.ts"
   }
 }

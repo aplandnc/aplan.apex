@@ -5,6 +5,7 @@
   "scripts": {
     "dev:admin": "pnpm --filter admin dev",
     "dev:staff": "pnpm --filter @apex/staff dev",
+    "dev:info": "pnpm --filter @apex/info dev",
     "dev:attendance": "pnpm --filter attendance dev",
     "dev:visitor": "pnpm --filter visitor dev",
     "dev:consultation": "pnpm --filter consultation dev",

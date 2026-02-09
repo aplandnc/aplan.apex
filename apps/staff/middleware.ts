@@ -11,6 +11,9 @@ function isPublicPath(pathname: string) {
   if (pathname === "/robots.txt") return true;
   if (pathname === "/sitemap.xml") return true;
 
+  // ✅ Next 내부 not-found 렌더링 경로(페이지 만들 필요 없음)
+  if (pathname === "/not-found") return true;
+
   // public 정적 리소스
   if (pathname.startsWith("/img/")) return true;
   if (pathname.startsWith("/assets/")) return true;
@@ -18,12 +21,12 @@ function isPublicPath(pathname: string) {
   // 앱에서 로그인 없이 허용할 페이지
   if (pathname === "/login") return true;
   if (pathname === "/register") return true;
-  if (pathname === "/auth/callback") return true;
+  if (pathname.startsWith("/auth/callback")) return true;
 
   // trailing slash 대응
   if (pathname.endsWith("/")) {
     const p = pathname.slice(0, -1);
-    if (p === "/login" || p === "/register" || p === "/auth/callback") return true;
+    if (p === "/login" || p === "/register" || p.startsWith("/auth/callback")) return true;
   }
 
   return false;
@@ -68,13 +71,13 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  // 4) 로그인 세션 확인
+  // 4) ✅ 세션 스토리지 값(getSession) 대신 서버 검증(getUser)
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // 5) 로그인 안 돼 있으면 /login으로
-  if (!session) {
+  if (!user) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("redirectedFrom", pathname);
     return NextResponse.redirect(loginUrl);
@@ -82,28 +85,33 @@ export async function middleware(req: NextRequest) {
 
   // 6) users_staff 데이터 확인
   const { data: userData } = await supabase
-    .from('users_staff')
-    .select('status')
-    .eq('kakao_id', session.user.id)
+    .from("users_staff")
+    .select("status")
+    .eq("kakao_id", user.id)
     .single();
 
   // 7) 미가입자 → /register
   if (!userData) {
-    return NextResponse.redirect(new URL('/register', req.url));
+    return NextResponse.redirect(new URL("/register", req.url));
   }
 
   // 8) status 기준 분기
-  if (userData.status === 'rejected' || userData.status === 'pending') {
+  if (userData.status === "rejected" || userData.status === "pending") {
     // 반려 또는 대기중 → /register (register에 pending/rejected 로직 있음)
-    return NextResponse.redirect(new URL('/register', req.url));
+    return NextResponse.redirect(new URL("/register", req.url));
   }
 
-  if (userData.status !== 'approved') {
+  if (userData.status !== "approved") {
     // 기타 미승인 상태도 → /register
-    return NextResponse.redirect(new URL('/register', req.url));
+    return NextResponse.redirect(new URL("/register", req.url));
   }
 
-  // 9) 승인 완료 → 통과 (이제 /staff로 접근 가능)
+  // 9) 승인 완료 → 루트 접근 시 /staff로 리다이렉트
+  if (pathname === "/" || pathname === "") {
+    return NextResponse.redirect(new URL("/staff", req.url));
+  }
+
+  // 10) 그 외 경로는 통과
   return res;
 }
 

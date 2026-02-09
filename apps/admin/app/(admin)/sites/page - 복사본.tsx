@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabaseAppClient } from "@apex/config";
 import MapModal from "@/components/MapModal";
 import AdminPageShell from "@/components/AdminPageShell";
-import { adminUi } from "@/styles/adminUi";
+import { adminUi } from "@apex/ui/styles/admin";
 
 type Site = {
   id: string;

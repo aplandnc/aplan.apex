@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm --filter admin build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm --filter @apex/staff build:*)"
     ]
   }
 }

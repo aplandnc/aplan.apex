@@ -2,22 +2,25 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import '@apex/ui/styles/globals.css';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="flex items-center justify-between px-4 py-3">
+      {/* 헤더 - 블랙 베이스 + 레드 포인트 */}
+      <header className="fixed top-0 left-0 right-0 z-[10001] bg-gradient-to-r from-gray-900 via-gray-800 to-red-900 shadow-lg">
+        <div className="flex items-center justify-between px-4 h-16">
           <button
             onClick={() => setIsOpen(true)}
-            className="p-2 hover:bg-gray-100 rounded-lg text-xl"
+            className="w-10 h-10 flex items-center justify-center text-white text-2xl rounded-lg hover:bg-white/10 active:bg-white/20 transition-colors"
           >
             ☰
           </button>
-          <h1 className="text-lg font-bold">APEX Staff</h1>
+          <h1 className="text-xl font-bold text-white tracking-wider">
+            APEX Staff
+          </h1>
           <div className="w-10"></div>
         </div>
       </header>
@@ -25,90 +28,141 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* 사이드바 오버레이 */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-50"
+          className="fixed inset-0 bg-black/50 z-[10002] transition-opacity"
           onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* 사이드바 */}
       <aside
-        className={`fixed top-0 left-0 h-full w-72 bg-white shadow-xl z-50 transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 bottom-0 w-80 bg-white z-[10002] shadow-2xl transform transition-transform duration-300 ease-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between p-4 border-b">
+        {/* 사이드바 헤더 - 레드 그라디언트 */}
+        <div className="h-24 bg-gradient-to-br from-red-600 to-red-800 px-6 flex items-center justify-between">
           <div>
-            <div className="text-lg font-bold">STAFF</div>
-            <div className="text-xs text-gray-500">APEX Staff App</div>
+            <div className="text-white text-2xl font-bold tracking-wide">
+              STAFF
+            </div>
+            <div className="text-red-100 text-sm mt-1">
+              직원 포털
+            </div>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-2 hover:bg-gray-100 rounded-lg text-xl"
+            className="w-10 h-10 flex items-center justify-center text-white text-2xl rounded-lg hover:bg-white/10 active:bg-white/20 transition-colors"
           >
             ✕
           </button>
         </div>
 
-        <nav className="p-4 space-y-1">
-          <Link
-            href="/staff/attendance/check"
-            className="block rounded-lg px-4 py-3 text-sm hover:bg-gray-100"
-            onClick={() => setIsOpen(false)}
-          >
-            출근체크
-          </Link>
-          <Link
-            href="/staff/attendance/history"
-            className="block rounded-lg px-4 py-3 text-sm hover:bg-gray-100"
-            onClick={() => setIsOpen(false)}
-          >
-            내 출근현황
-          </Link>
-          <Link
-            href="/staff/agreement"
-            className="block rounded-lg px-4 py-3 text-sm hover:bg-gray-100"
-            onClick={() => setIsOpen(false)}
-          >
-            근무이행각서
-          </Link>
-          <Link
-            href="/staff/documents"
-            className="block rounded-lg px-4 py-3 text-sm hover:bg-gray-100"
-            onClick={() => setIsOpen(false)}
-          >
-            서류 제출
-          </Link>
-          <Link
-            href="/staff/visitor"
-            className="block rounded-lg px-4 py-3 text-sm hover:bg-gray-100"
-            onClick={() => setIsOpen(false)}
-          >
-            방문예정 등록
-          </Link>
+        {/* 네비게이션 */}
+        <nav className="p-4 pb-24 space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 6rem)' }}>
+          {/* 출퇴근 섹션 */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2 px-3">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                출퇴근
+              </div>
+              <div className="flex-1 h-px bg-gray-200"></div>
+            </div>
+            <Link
+              href="/checkin"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
+              onClick={() => setIsOpen(false)}
+            >
+              <span className="text-2xl">📍</span>
+              <span className="font-medium">출근체크</span>
+            </Link>
+            <Link
+              href="/history"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
+              onClick={() => setIsOpen(false)}
+            >
+              <span className="text-2xl">📊</span>
+              <span className="font-medium">내 출근현황</span>
+            </Link>
+          </div>
 
-          <div className="border-t my-2"></div>
+          {/* 업무 섹션 */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2 px-3">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                업무
+              </div>
+              <div className="flex-1 h-px bg-gray-200"></div>
+            </div>
+            <Link
+              href="/submitVisitor"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
+              onClick={() => setIsOpen(false)}
+            >
+              <span className="text-2xl">👥</span>
+              <span className="font-medium">방문예정 등록</span>
+            </Link>
+            <Link
+              href="/staff/agreement"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
+              onClick={() => setIsOpen(false)}
+            >
+              <span className="text-2xl">📋</span>
+              <span className="font-medium">근무이행각서</span>
+            </Link>
+            <Link
+              href="/submitDocs"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
+              onClick={() => setIsOpen(false)}
+            >
+              <span className="text-2xl">🪪</span>
+              <span className="font-medium">서류 제출</span>
+            </Link>
+            <Link
+              href="/complain"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
+              onClick={() => setIsOpen(false)}
+            >
+              <span className="text-2xl">📬</span>
+              <span className="font-medium">마음의소리</span>
+            </Link>
+          </div>
 
-          <Link
-            href="/staff/profile"
-            className="block rounded-lg px-4 py-3 text-sm hover:bg-gray-100"
-            onClick={() => setIsOpen(false)}
-          >
-            내정보 수정
-          </Link>
-          
+          {/* 설정 섹션 */}
+          <div>
+            <div className="flex items-center gap-2 mb-2 px-3">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                설정
+              </div>
+              <div className="flex-1 h-px bg-gray-200"></div>
+            </div>
+            <Link
+              href="/editProfile"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
+              onClick={() => setIsOpen(false)}
+            >
+              <span className="text-2xl">⚙️</span>
+              <span className="font-medium">내 정보 수정</span>
+            </Link>
+          </div>
+        </nav>
+
+        {/* 앱 설치 버튼 - 하단 고정 */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-white">
           <button
             onClick={() => {
               alert('홈 화면에 추가하려면 브라우저 메뉴에서 "홈 화면에 추가"를 선택하세요.');
             }}
-            className="w-full text-left rounded-lg px-4 py-3 text-sm hover:bg-gray-100"
+            className="w-full bg-[#146bb7] text-white py-2.5 rounded-lg font-semibold shadow-lg hover:bg-[#1f1f1f] active:scale-95 transition-all flex items-center justify-center gap-2"
           >
-            앱으로 설치
+            <span className="text-base">💾</span>
+            <span>앱으로 설치하기</span>
           </button>
-        </nav>
+        </div>
       </aside>
 
       {/* 메인 컨텐츠 */}
-      <main className="p-4">
+      <main className="pb-4">
+        <div className="h-16" /> {/* 헤더 높이만큼 여백 */}
         {children}
       </main>
     </div>

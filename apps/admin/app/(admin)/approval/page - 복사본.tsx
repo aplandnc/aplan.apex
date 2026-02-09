@@ -3,7 +3,7 @@
 import * as React from "react";
 import { supabaseAppClient } from "@apex/config";
 import AdminPageShell from "@/components/AdminPageShell";
-import { adminUi } from "@/styles/adminUi";
+import { adminUi } from "@apex/ui/styles/admin";
 
 type StaffRow = {
   id: string;

@@ -84,15 +84,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { type: "category", label: "현장관리" },
     { type: "item", name: "계약 관리", path: "/attendance", icon: "✒️" },
     { type: "item", name: "지출 관리", path: "/visitors", icon: "💰" },
-    { type: "item", name: "데이터 관리", path: "/sales", icon: "💼" },
+    { type: "item", name: "데이터 관리", path: "/sales", icon: "💽" },
     
     { type: "category", label: "직원관리" },
     { type: "item", name: "승인 관리", path: "/approval", icon: "✅" },
     { type: "item", name: "직원 관리", path: "/manage_staff", icon: "👥" },
-    { type: "item", name: "서류 관리", path: "/documents", icon: "📋" },
+    { type: "item", name: "서류 관리", path: "/documents", icon: "💼" },
 
-    { type: "category", label: "시스템설정" },
+    { type: "category", label: "관리자 설정" },
     { type: "item", name: "현장 설정", path: "/sites", icon: "🏢" },
+    { type: "item", name: "근무이행각서", path: "/workPledge", icon: "📜" },
     { type: "item", name: "계정 설정", path: "/manage_admin", icon: "🔑" },
   ] as const;
 

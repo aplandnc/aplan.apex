@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseAppClient } from "@apex/config";
+import { adminUi } from "@apex/ui/styles/admin";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,23 +33,22 @@ export default function LoginPage() {
 
       const authUid = authData.user.id;
 
-     const { data: adminData, error: adminErr } = await supabase
-      .from("users_admin")
-      .select("*")
-      .eq("auth_uid", authUid)
-      .eq("status", 1)
-      .maybeSingle();
+      const { data: adminData, error: adminErr } = await supabase
+        .from("users_admin")
+        .select("*")
+        .eq("auth_uid", authUid)
+        .eq("status", 1)
+        .maybeSingle();
 
-if (adminErr) {
-  // RLS 막혀도 여기로 떨어질 수 있음
-  throw new Error(`관리자 권한 조회 실패: ${adminErr.message}`);
-}
+      if (adminErr) {
+        // RLS 막혀도 여기로 떨어질 수 있음
+        throw new Error(`관리자 권한 조회 실패: ${adminErr.message}`);
+      }
 
-if (!adminData) {
-  await supabase.auth.signOut();
-  throw new Error("관리자 권한이 없습니다");
-}
-
+      if (!adminData) {
+        await supabase.auth.signOut();
+        throw new Error("관리자 권한이 없습니다");
+      }
 
       sessionStorage.setItem("admin_info", JSON.stringify(adminData));
 
@@ -66,9 +66,14 @@ if (!adminData) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-md">
+      <div className={`${adminUi.card} max-w-md w-full space-y-8 p-8`}>
         <div className="text-center select-none">
-          <img src="/img/logo.svg" alt="APEX Logo" className="mx-auto block h-14 w-auto object-contain mb-4" draggable={false} />
+          <img
+            src="/img/logo.svg"
+            alt="APEX Logo"
+            className="mx-auto block h-14 w-auto object-contain mb-4"
+            draggable={false}
+          />
           <h2 className="text-4xl font-extrabold text-gray-900 tracking-wide">APEX</h2>
           <p className="mt-2 text-sm text-gray-400">APlan EXecutive System</p>
         </div>
@@ -80,7 +85,7 @@ if (!adminData) {
               <input
                 type="text"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className={adminUi.inputClass(isLoading)}
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
               />
@@ -91,7 +96,7 @@ if (!adminData) {
               <input
                 type="password"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className={adminUi.inputClass(isLoading)}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -104,11 +109,7 @@ if (!adminData) {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-          >
+          <button type="submit" disabled={isLoading} className={`${adminUi.buttonClass.primary} w-full`}>
             {isLoading ? "로그인 중..." : "로그인"}
           </button>
         </form>

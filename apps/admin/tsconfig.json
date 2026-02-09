@@ -39,9 +39,6 @@
       "@apex/config": [
         "../../packages/config/src/index.ts"
       ],
-      "@apex/config/app": [
-        "../../packages/config/src/index-app.ts"
-      ],
       "@apex/types": [
         "../../packages/types/src"
       ]

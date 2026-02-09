@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAppClient } from '@apex/config';
 import { type StaffType, type RegisterFormData } from '@apex/auth';
+import { staffUi } from '@apex/ui/styles/staff';
 
 const STAFF_TYPES: StaffType[] = ['기획', '상담사', 'TM', '큐레이터', '아르바이트', '홍보단', '영업사원', '기타'];
 const RANKS = ['팀장', '부장', '차장', '실장', '과장', '대리'];
@@ -50,41 +51,33 @@ export default function RegisterPage() {
   const [sites, setSites] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // ✅ 개인정보 안내 팝업(첫 진입 1회)
+  // 개인정보 안내 팝업(첫 진입 1회)
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [privacyAgree, setPrivacyAgree] = useState(false);
 
-  // ✅ 차량정보 '해당 사항 없음'
+  // 차량정보 '해당 사항 없음'
   const [noCar, setNoCar] = useState(false);
 
-  // ✅ 승인 게이트
-  // - needs_login: 로그인 필요(자동 리다이렉트 금지, 오버레이만)
-  // - needs_register: 로그인은 됐는데 users_staff row 없음 -> 폼 작성
-  // - pending: 신청은 했는데 승인 전 -> 폼 비활성화 + 문구
-  // - rejected: 반려 -> 반려사유 표시 + 기존값 유지 + 수정 가능(팝업X)
-  // - approved: 승인 완료 -> 홈으로 이동
+  // 승인 게이트
   type StaffGate = 'checking' | 'needs_login' | 'needs_register' | 'pending' | 'rejected' | 'approved';
   const [staffGate, setStaffGate] = useState<StaffGate>('checking');
 
-  // ✅ 반려 사유 + update 대상 row id
+  // 반려 사유 + update 대상 row id
   const [rejectedReason, setRejectedReason] = useState<string>('');
   const [staffRowId, setStaffRowId] = useState<string | null>(null);
 
-  // ✅ staffGate에 따라 개인정보 팝업 노출 제어
+  // staffGate에 따라 개인정보 팝업 노출 제어
   useEffect(() => {
-    // 가입폼(신규) 보여줄 때만 개인정보 팝업 노출
     if (staffGate === 'needs_register') {
       setPrivacyOpen(true);
       setPrivacyAgree(false);
       return;
     }
 
-    // rejected/pending/approved/checking/needs_login 중에는 팝업 닫기
     if (privacyOpen) setPrivacyOpen(false);
 
-    // pending/rejected에서는 기존 UX 유지 (이미 동의된 것으로 간주)
     if (staffGate === 'pending' || staffGate === 'rejected') setPrivacyAgree(true);
-  }, [staffGate]); // privacyOpen은 의도적으로 deps에 안 넣음(불필요 렌더/플래시 방지)
+  }, [staffGate]);
 
   useEffect(() => {
     if (noCar) {
@@ -118,7 +111,7 @@ export default function RegisterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ users_staff 승인/대기/반려/미신청 분기 (status 기준)
+  // users_staff 승인/대기/반려/미신청 분기 (status 기준)
   useEffect(() => {
     let cancelled = false;
 
@@ -142,7 +135,6 @@ export default function RegisterPage() {
 
         if (cancelled) return;
 
-        // 조회 에러는 기존 UX 깨지지 않게 "가입 가능"으로 둠
         if (error) {
           setStaffGate('needs_register');
           setStaffRowId(null);
@@ -150,7 +142,6 @@ export default function RegisterPage() {
           return;
         }
 
-        // row 없음 → 회원가입 폼 정상
         if (!row) {
           setStaffGate('needs_register');
           setStaffRowId(null);
@@ -161,7 +152,6 @@ export default function RegisterPage() {
         const typedRow = row as StaffRowForGate;
         setStaffRowId(String(typedRow.id ?? '') || null);
 
-        // ✅ status 우선, legacy approved fallback
         const status: StaffStatus =
           typedRow.status ?? (typedRow.approved ? 'approved' : 'pending');
 
@@ -173,19 +163,16 @@ export default function RegisterPage() {
           calculatedStatus: status
         });
 
-        // approved → 홈으로 이동
         if (status === 'approved' || typedRow.approved) {
           setStaffGate('approved');
-          router.replace('/');
+          router.replace('/staff');
           return;
         }
 
-        // rejected → 반려사유 표시 + 기존값 유지 + 수정 가능
         if (status === 'rejected') {
           setStaffGate('rejected');
           setRejectedReason(String(typedRow.rejected_reason ?? ''));
 
-          // ✅ 기존 입력값 주입 (빈 값이면 기존 form 유지)
           setForm(prev => ({
             ...(prev as any),
             site_id: String(typedRow.site_id ?? prev.site_id ?? ''),
@@ -206,7 +193,6 @@ export default function RegisterPage() {
           return;
         }
 
-        // pending(기본) → 가입화면 그대로 + 전체 비활성화 + 문구
         setStaffGate('pending');
         setRejectedReason('');
         setPrivacyOpen(false);
@@ -227,14 +213,12 @@ export default function RegisterPage() {
   const showSalesFields = form.staff_type === '영업사원';
   const showContactFields = showRankField || showSalesFields;
 
-  // ✅ 차량정보는 3개 모두 입력하거나, '해당 사항 없음' 체크 중 하나는 반드시 충족
   const carFilledAll =
     Boolean((form as any).car_model?.trim()) &&
     Boolean((form as any).car_color?.trim()) &&
     Boolean((form as any).car_number?.trim());
   const carValid = noCar || carFilledAll;
 
-  // ✅ 화면에 보이는 필수값들이 모두 채워졌을 때만 버튼 활성화
   const siteValid = Boolean(form.site_id);
   const nameValid = Boolean(form.name?.trim());
   const phoneValid = !showContactFields || Boolean(form.phone?.trim());
@@ -242,7 +226,6 @@ export default function RegisterPage() {
   const salesOrgValid =
     !showSalesFields ||
     (Boolean((form as any).hq?.trim()) && Boolean((form as any).team?.trim()) && Boolean((form as any).rank?.trim()));
-  // 팝업은 동의해야만 닫히므로, 닫혀있으면 동의 완료로 간주
   const privacyValid = !privacyOpen;
 
   const isFormValid = siteValid && nameValid && phoneValid && rankValid && salesOrgValid && carValid && privacyValid;
@@ -265,22 +248,18 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ✅ 대기 상태면 제출 차단
     if (staffGate === 'pending') return;
 
-    // ✅ 로그인 안 된 상태면 자동 리다이렉트 금지 (루프 방지)
     if (staffGate === 'needs_login') {
       alert('카카오 로그인이 필요합니다.');
       return;
     }
 
-    // 1) 차량정보 규칙
     if (!carValid) {
       alert("차량정보(차종/색상/차량번호)를 모두 입력하거나, '해당 사항 없음'을 체크하세요");
       return;
     }
 
-    // 2) 화면에 보이는 필수값 규칙
     if (!siteValid) {
       alert('근무 현장을 선택하세요');
       return;
@@ -312,12 +291,10 @@ export default function RegisterPage() {
       const authUser = data?.user;
 
       if (!authUser) {
-        // ✅ 자동 /login push 금지: gate만 바꿔서 오버레이로 처리
         setStaffGate('needs_login');
         return;
       }
 
-      // ✅ rejected(또는 기존 row 존재)면 insert 대신 update로 재신청
       if (staffRowId) {
         const { error } = await supabase
           .from('users_staff')
@@ -342,8 +319,7 @@ export default function RegisterPage() {
         if (error) throw error;
       }
 
-      // ✅ 서버에 실제로 pending 반영됐는지 즉시 확인 (안 바뀌면 승인목록 안 뜸)
-        const { data: checkRow, error: checkErr } = await supabase
+      const { data: checkRow, error: checkErr } = await supabase
         .from('users_staff')
         .select('status, rejected_reason')
         .eq('kakao_id', authUser.id)
@@ -351,15 +327,13 @@ export default function RegisterPage() {
         .limit(1)
         .maybeSingle();
 
-if (checkErr) throw checkErr;
+      if (checkErr) throw checkErr;
 
-const nowStatus = String((checkRow as any)?.status ?? '');
-if (nowStatus !== 'pending') {
-  alert(`재신청은 되었지만 상태가 '${nowStatus}'로 남아있습니다. 관리자에게 문의해주세요.`);
-  // 여기서 pending 오버레이로 넘어가버리면 사용자가 "된 줄" 착각하니 return
-  return;
-}
-
+      const nowStatus = String((checkRow as any)?.status ?? '');
+      if (nowStatus !== 'pending') {
+        alert(`재신청은 되었지만 상태가 '${nowStatus}'로 남아있습니다. 관리자에게 문의해주세요.`);
+        return;
+      }
 
       setRejectedReason('');
       setStaffGate('pending');
@@ -371,23 +345,22 @@ if (nowStatus !== 'pending') {
     }
   };
 
-  // ✅ pending 일 때 전체 비활성화용 플래그
   const isPending = staffGate === 'pending';
   const isRejected = staffGate === 'rejected';
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 apex-cursorfix">
-      {/* ✅ 카카오 로그인 필요 오버레이 (자동이동 없음) */}
+    <div className={`${staffUi.layout.page} py-8 px-4 apex-cursorfix`}>
+      {/* 카카오 로그인 필요 오버레이 */}
       {staffGate === 'needs_login' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] px-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
-            <div className="text-lg font-bold text-gray-900 select-none">카카오 로그인이 필요합니다</div>
-            <div className="text-sm text-gray-600 mt-2 select-none">직원 등록 신청은 카카오 로그인 후 진행할 수 있어요.</div>
+        <div className={staffUi.modal.overlay}>
+          <div className={staffUi.modal.container}>
+            <div className={`${staffUi.modal.title} select-none`}>카카오 로그인이 필요합니다</div>
+            <div className={`${staffUi.modal.description} select-none`}>직원 등록 신청은 카카오 로그인 후 진행할 수 있어요.</div>
 
             <button
               type="button"
               onClick={() => router.push(`/login?redirectedFrom=${encodeURIComponent('/register')}`)}
-              className="mt-5 w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-3 rounded-lg transition cursor-pointer"
+              className={`mt-5 ${staffUi.buttonClass.kakao}`}
             >
               카카오로 로그인
             </button>
@@ -420,18 +393,18 @@ if (nowStatus !== 'pending') {
         }
       `}</style>
 
-      {/* ✅ 개인정보 안내 팝업 */}
+      {/* 개인정보 안내 팝업 */}
       {privacyOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
 
-          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden">
-            <div className="p-5 bg-gradient-to-r from-blue-600 to-indigo-600">
-              <div className="text-white text-lg font-bold select-none">- 개인정보 관련 안내 -</div>
-              <div className="text-white/80 text-sm mt-1 select-none">개인정보 수집/이용자 : (주)에이플랜디앤씨</div>
+          <div className={`relative w-full ${staffUi.modal.containerMd}`}>
+            <div className={staffUi.modal.header}>
+              <div className={`${staffUi.modal.headerTitle} select-none`}>- 개인정보 관련 안내 -</div>
+              <div className={`${staffUi.modal.headerSubtitle} select-none`}>개인정보 수집/이용자 : (주)에이플랜디앤씨</div>
             </div>
 
-            <div className="p-5">
+            <div className={staffUi.modal.body}>
               <div className="text-sm text-gray-700 leading-relaxed space-y-2">
                 <p>입력하는 개인정보는 현장 근무인력 조회 및 관리 외의 다른 용도로 사용되지 않습니다.</p>
                 <p>차종 및 차량번호는 주차장 내 차량관리 목적으로 사용됩니다.</p>
@@ -444,9 +417,9 @@ if (nowStatus !== 'pending') {
                   type="checkbox"
                   checked={privacyAgree}
                   onChange={e => setPrivacyAgree(e.target.checked)}
-                  className="h-4 w-4"
+                  className={staffUi.form.checkbox}
                 />
-                <label htmlFor="privacyAgree" className="text-sm text-gray-800 select-none">
+                <label htmlFor="privacyAgree" className={staffUi.form.checkboxLabel}>
                   동의함
                 </label>
               </div>
@@ -455,7 +428,7 @@ if (nowStatus !== 'pending') {
                 type="button"
                 disabled={!privacyAgree}
                 onClick={() => setPrivacyOpen(false)}
-                className="mt-4 w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 transition cursor-pointer"
+                className={`mt-4 ${staffUi.buttonClass.primary} disabled:bg-gray-300 disabled:text-gray-500`}
               >
                 확인
               </button>
@@ -465,37 +438,37 @@ if (nowStatus !== 'pending') {
       )}
 
       <div className="relative max-w-md mx-auto">
-        {/* ✅ 반려 사유 표시 (rejected일 때만) */}
+        {/* 반려 사유 표시 */}
         {isRejected && rejectedReason?.trim() && (
-          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
-            <div className="text-sm font-semibold text-red-800 select-none">반려 사유</div>
-            <div className="text-sm text-red-700 mt-1 whitespace-pre-wrap">{rejectedReason}</div>
+          <div className={`mb-4 ${staffUi.alert.warning}`}>
+            <div className={`${staffUi.alert.warningTitle} select-none`}>반려 사유</div>
+            <div className={staffUi.alert.warningText}>{rejectedReason}</div>
           </div>
         )}
 
-        {/* ✅ 승인대기 오버레이 */}
+        {/* 승인대기 오버레이 */}
         {isPending && (
           <div className="absolute inset-0 z-40 flex items-center justify-center rounded-lg">
             <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] rounded-lg" />
-            <div className="relative z-10 bg-white border border-gray-200 shadow-xl rounded-2xl px-6 py-5 text-center">
-              <div className="text-lg font-bold text-gray-900 select-none">관리자 승인 대기중입니다.</div>
-              <div className="text-sm text-gray-600 mt-1 select-none">승인 완료 후 자동으로 직원앱으로 이동됩니다.</div>
+            <div className={`relative z-10 ${staffUi.alert.pending}`}>
+              <div className={`${staffUi.modal.title} select-none`}>관리자 승인 대기중입니다.</div>
+              <div className={`${staffUi.text.body} mt-1 select-none`}>승인 완료 후 자동으로 직원앱으로 이동됩니다.</div>
             </div>
           </div>
         )}
 
-        {/* ✅ pending이면 전체 포인터 차단 */}
-        <div className={`bg-white rounded-lg shadow-lg p-6 cursor-default ${isPending ? 'pointer-events-none opacity-100' : ''}`}>
-          <h1 className="text-2xl font-bold text-center mb-6 select-none cursor-default">APLAN 직원 등록</h1>
+        {/* pending이면 전체 포인터 차단 */}
+        <div className={`${staffUi.cardLg} cursor-default ${isPending ? 'pointer-events-none opacity-100' : ''}`}>
+          <h1 className={`${staffUi.text.title} text-center mb-6 select-none cursor-default`}>APLAN 직원 등록</h1>
 
-          <form onSubmit={handleSubmit} className="space-y-4 cursor-default">
-            <div className="cursor-default">
-              <label className="block text-sm font-medium mb-1 select-none cursor-default">근무 현장을 선택하세요</label>
+          <form onSubmit={handleSubmit} className={`${staffUi.form.group} cursor-default`}>
+            <div className={staffUi.form.field}>
+              <label className={staffUi.form.label}>근무 현장을 선택하세요</label>
               <select
                 required
                 value={form.site_id}
                 onChange={e => setForm({ ...form, site_id: String(e.target.value) })}
-                className="w-full border rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                className={staffUi.selectClass()}
               >
                 <option value="" disabled hidden>
                   선택
@@ -508,8 +481,8 @@ if (nowStatus !== 'pending') {
               </select>
             </div>
 
-            <div className="cursor-default">
-              <label className="block text-sm font-medium mb-1 select-none cursor-default">직무 구분을 선택하세요</label>
+            <div className={staffUi.form.field}>
+              <label className={staffUi.form.label}>직무 구분을 선택하세요</label>
               <select
                 required
                 value={form.staff_type}
@@ -523,7 +496,7 @@ if (nowStatus !== 'pending') {
                     sales_name: ''
                   } as any)
                 }
-                className="w-full border rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                className={staffUi.selectClass()}
               >
                 {STAFF_TYPES.map(type => (
                   <option key={type} value={type}>
@@ -533,39 +506,39 @@ if (nowStatus !== 'pending') {
               </select>
             </div>
 
-            <div className="cursor-default">
-              <label className="block text-sm font-medium mb-1 select-none cursor-default">성명(본명)</label>
+            <div className={staffUi.form.field}>
+              <label className={staffUi.form.label}>성명(본명)</label>
               <input
                 type="text"
                 required
                 value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-text"
+                className={`${staffUi.inputClass()} cursor-text`}
                 placeholder="본명을 입력해주세요"
               />
             </div>
 
             {showSalesFields && (
-              <div className="cursor-default">
-                <label className="block text-sm font-medium mb-1 select-none cursor-default">영업명</label>
+              <div className={staffUi.form.field}>
+                <label className={staffUi.form.label}>영업명</label>
                 <input
                   type="text"
                   value={(form as any).sales_name || ''}
                   onChange={e => setForm({ ...(form as any), sales_name: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-text"
+                  className={`${staffUi.inputClass()} cursor-text`}
                   placeholder="영업명이 없으면 공란 또는 실명"
                 />
               </div>
             )}
 
             {showRankField && (
-              <div className="cursor-default">
-                <label className="block text-sm font-medium mb-1 select-none cursor-default">직급을 선택하세요</label>
+              <div className={staffUi.form.field}>
+                <label className={staffUi.form.label}>직급을 선택하세요</label>
                 <select
                   required
                   value={(form as any).rank || ''}
                   onChange={e => setForm({ ...(form as any), rank: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                  className={staffUi.selectClass()}
                 >
                   <option value="">선택해주세요</option>
                   {RANKS.map(rank => (
@@ -579,13 +552,13 @@ if (nowStatus !== 'pending') {
 
             {showSalesFields && (
               <div className="grid grid-cols-3 gap-2 cursor-default">
-                <div className="cursor-default">
-                  <label className="block text-sm font-medium mb-1 select-none cursor-default">본부</label>
+                <div className={staffUi.form.field}>
+                  <label className={staffUi.form.label}>본부</label>
                   <select
                     required
                     value={(form as any).hq || ''}
                     onChange={e => setForm({ ...(form as any), hq: e.target.value })}
-                    className="w-full border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    className={`${staffUi.selectClass()} px-2 text-sm`}
                   >
                     <option value="">본부 선택</option>
                     {HQ_LIST.map(hq => (
@@ -596,13 +569,13 @@ if (nowStatus !== 'pending') {
                   </select>
                 </div>
 
-                <div className="cursor-default">
-                  <label className="block text-sm font-medium mb-1 select-none cursor-default">팀</label>
+                <div className={staffUi.form.field}>
+                  <label className={staffUi.form.label}>팀</label>
                   <select
                     required
                     value={(form as any).team || ''}
                     onChange={e => setForm({ ...(form as any), team: e.target.value })}
-                    className="w-full border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    className={`${staffUi.selectClass()} px-2 text-sm`}
                   >
                     <option value="">팀 선택</option>
                     {TEAM_LIST.map(team => (
@@ -613,13 +586,13 @@ if (nowStatus !== 'pending') {
                   </select>
                 </div>
 
-                <div className="cursor-default">
-                  <label className="block text-sm font-medium mb-1 select-none cursor-default">직급</label>
+                <div className={staffUi.form.field}>
+                  <label className={staffUi.form.label}>직급</label>
                   <select
                     required
                     value={(form as any).rank || ''}
                     onChange={e => setForm({ ...(form as any), rank: e.target.value })}
-                    className="w-full border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    className={`${staffUi.selectClass()} px-2 text-sm`}
                   >
                     <option value="">선택</option>
                     {SALES_RANKS.map(rank => (
@@ -633,14 +606,14 @@ if (nowStatus !== 'pending') {
             )}
 
             {showContactFields && (
-              <div className="cursor-default">
-                <label className="block text-sm font-medium mb-1 select-none cursor-default">전화번호 입력(숫자만)</label>
+              <div className={staffUi.form.field}>
+                <label className={staffUi.form.label}>전화번호 입력(숫자만)</label>
                 <input
                   type="tel"
                   required
                   value={form.phone}
                   onChange={e => setForm({ ...form, phone: formatPhone(e.target.value) })}
-                  className="w-full border rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-text"
+                  className={`${staffUi.inputClass()} cursor-text`}
                   placeholder="010-0000-0000"
                   inputMode="numeric"
                   autoComplete="tel"
@@ -649,46 +622,46 @@ if (nowStatus !== 'pending') {
             )}
 
             <div className="grid grid-cols-3 gap-2 cursor-default">
-              <div className="cursor-default">
-                <label className="block text-sm font-medium mb-1 select-none cursor-default">차종</label>
+              <div className={staffUi.form.field}>
+                <label className={staffUi.form.label}>차종</label>
                 <input
                   type="text"
                   value={(form as any).car_model || ''}
                   disabled={noCar}
                   onChange={e => setForm({ ...(form as any), car_model: e.target.value })}
-                  className="w-full border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-text disabled:bg-gray-100 disabled:text-gray-400"
+                  className={`${staffUi.inputClass(noCar)} px-2 text-sm cursor-text`}
                   placeholder="차종"
                 />
               </div>
 
-              <div className="cursor-default">
-                <label className="block text-sm font-medium mb-1 select-none cursor-default">색상</label>
+              <div className={staffUi.form.field}>
+                <label className={staffUi.form.label}>색상</label>
                 <input
                   type="text"
                   value={(form as any).car_color || ''}
                   disabled={noCar}
                   onChange={e => setForm({ ...(form as any), car_color: e.target.value })}
-                  className="w-full border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-text disabled:bg-gray-100 disabled:text-gray-400"
+                  className={`${staffUi.inputClass(noCar)} px-2 text-sm cursor-text`}
                   placeholder="색상"
                 />
               </div>
 
-              <div className="cursor-default">
-                <label className="block text-sm font-medium mb-1 select-none cursor-default">차량번호</label>
+              <div className={staffUi.form.field}>
+                <label className={staffUi.form.label}>차량번호</label>
                 <input
                   type="text"
                   value={(form as any).car_number || ''}
                   disabled={noCar}
                   onChange={e => setForm({ ...(form as any), car_number: e.target.value })}
-                  className="w-full border rounded-lg px-2 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-text disabled:bg-gray-100 disabled:text-gray-400"
+                  className={`${staffUi.inputClass(noCar)} px-2 text-sm cursor-text`}
                   placeholder="차량번호"
                 />
               </div>
             </div>
 
             <div className="flex items-center gap-2 -mt-1">
-              <input id="noCar" type="checkbox" checked={noCar} onChange={e => setNoCar(e.target.checked)} className="h-4 w-4" />
-              <label htmlFor="noCar" className="text-sm text-gray-800 select-none">
+              <input id="noCar" type="checkbox" checked={noCar} onChange={e => setNoCar(e.target.checked)} className={staffUi.form.checkbox} />
+              <label htmlFor="noCar" className={staffUi.form.checkboxLabel}>
                 차량 없음
               </label>
             </div>
@@ -696,7 +669,7 @@ if (nowStatus !== 'pending') {
             <button
               type="submit"
               disabled={loading || !isFormValid || staffGate === 'needs_login'}
-              className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition mt-6 cursor-pointer"
+              className={`${staffUi.buttonClass.primary} mt-6`}
             >
               {loading ? '처리중...' : isRejected ? '재신청' : '가입 신청'}
             </button>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, getUserData } from '@apex/auth';
+import { staffUi } from '@apex/ui/styles/staff';
 
 export default function PendingPage() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function PendingPage() {
       if (!userData) {
         router.push('/register');
       } else if (userData.approved) {
-        router.push('/');
+        router.push('/staff');
       } else {
         setChecking(false);
       }
@@ -36,17 +37,17 @@ export default function PendingPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className={`${staffUi.layout.page} flex items-center justify-center`}>
         <p>확인중...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow p-8 text-center">
+    <div className={`${staffUi.layout.page} flex items-center justify-center`}>
+      <div className={`max-w-md w-full ${staffUi.card} text-center`}>
         <div className="mb-6">
-          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className={staffUi.iconCircle.yellow}>
             <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
@@ -56,15 +57,15 @@ export default function PendingPage() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">승인 대기중</h1>
+          <h1 className={`${staffUi.text.title} text-gray-900`}>승인 대기중</h1>
         </div>
 
-        <p className="text-gray-600 mb-8">
+        <p className={`${staffUi.text.body} mb-8`}>
           관리자 승인 대기중입니다.<br />
           승인 완료 시 자동으로 로그인됩니다.
         </p>
 
-        <div className="text-sm text-gray-500">
+        <div className={staffUi.text.hint}>
           <p>문의사항이 있으시면</p>
           <p>관리자에게 연락해주세요.</p>
         </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AdminPageShell from "@/components/AdminPageShell";
-import { adminUi } from "../../../src/styles/adminUi";
+import { adminUi } from "@apex/ui/styles/admin";
 
 type AdminCode = "A" | "B" | "C" | "O";
 

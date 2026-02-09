@@ -1,10 +1,5 @@
-/* PretendardGOV 폰트 */
-@font-face {
-  font-family: 'PretendardGOV';
-  src: url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/woff2/PretendardGOVVariable.woff2') format('woff2');
-  font-weight: 100 900;
-  font-display: swap;
-}
+/* PretendardGOV 폰트 - 다이나믹 서브셋 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-gov-dynamic-subset.min.css");
 
 @tailwind base;
 @tailwind components;
@@ -13,7 +8,7 @@
 @layer base {
   /* 전체 폰트 적용 */
   body {
-    font-family: 'PretendardGOV', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Pretendard GOV', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     letter-spacing: -0.01em; /* Freesentation 대비 자간 보정 */
   }
 
@@ -46,6 +41,12 @@
 
   ::-webkit-scrollbar-thumb:hover {
     background: #555;
+  }
+
+  /* 네이버 지도 로고/저작권만 z-index 조정 */
+  #map {
+    position: relative;
+    z-index: 11 !important;
   }
 }
 

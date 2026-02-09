@@ -14,7 +14,8 @@
     "@supabase/supabase-js": "^2.39.0",
     "next": "14.1.0",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "react-signature-pad-wrapper": "^4.3.2"
   },
   "devDependencies": {
     "@types/node": "^20",
