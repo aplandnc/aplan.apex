@@ -1,0 +1,4 @@
+{
+  "buildCommand": "pnpm build --filter=admin",
+  "outputDirectory": "apps/admin/.next"
+}
