@@ -14,9 +14,12 @@ function isPublicPath(pathname: string) {
   // ✅ Next 내부 not-found 렌더링 경로(페이지 만들 필요 없음)
   if (pathname === "/not-found") return true;
 
-  // public 정적 리소스
+  // public 정적 리소스 (확장)
   if (pathname.startsWith("/img/")) return true;
   if (pathname.startsWith("/assets/")) return true;
+  if (pathname.startsWith("/fonts/")) return true;
+  if (pathname.startsWith("/icons/")) return true;
+  if (pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot)$/)) return true;
 
   // 앱에서 로그인 없이 허용할 페이지
   if (pathname === "/login") return true;

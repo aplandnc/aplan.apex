@@ -54,22 +54,26 @@ export default function SubmitDocumentPage() {
   });
 
   useEffect(() => {
-    fetchStaffInfo();
-    fetchBanks();
-  }, []);
+    const loadData = async () => {
+      const supabase = supabaseAppClient();
+      const { data: { user } } = await supabase.auth.getUser();
 
-  const fetchStaffInfo = async () => {
-    const supabase = supabaseAppClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      const { data: staff } = await supabase
-        .from('users_staff')
-        .select('name, rank, hq, team, site_id')
-        .eq('kakao_id', user.id)
-        .single();
+      if (!user) return;
 
-      if (staff && staff.site_id) {
+      // 모든 쿼리를 병렬 실행
+      const [staffResult, banksResult] = await Promise.all([
+        supabase.from('users_staff').select('name, rank, hq, team, site_id').eq('kakao_id', user.id).single(),
+        supabase.from('banks').select('code, name').order('name'),
+      ]);
+
+      // banks 설정
+      if (banksResult.data && !banksResult.error) {
+        setBanks(banksResult.data);
+      }
+
+      // staff 정보 + site 이름 가져오기
+      if (staffResult.data && staffResult.data.site_id) {
+        const staff = staffResult.data;
         const { data: site } = await supabase
           .from('sites')
           .select('name')
@@ -85,26 +89,16 @@ export default function SubmitDocumentPage() {
         });
 
         // 예금주 기본값 설정
-        setFormData(prev => ({ 
-          ...prev, 
+        setFormData(prev => ({
+          ...prev,
           accountHolder: staff.name || '',
           name: staff.name || ''
         }));
       }
-    }
-  };
+    };
 
-  const fetchBanks = async () => {
-    const supabase = supabaseAppClient();
-    const { data, error } = await supabase
-      .from('banks')
-      .select('code, name')
-      .order('name');
-    
-    if (data && !error) {
-      setBanks(data);
-    }
-  };
+    loadData();
+  }, []);
 
   const formatResidentNumber = (value: string) => {
     const numbers = value.replace(/[^\d]/g, '');

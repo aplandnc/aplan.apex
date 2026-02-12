@@ -85,8 +85,45 @@ export default function AttendanceCheckPage() {
     return kstTime.toISOString().split("T")[0];
   };
 
-  // 초기 데이터 로드
+  // 초기 데이터 로드 + GPS 동시 시작 (병렬화)
   useEffect(() => {
+    let isMounted = true;
+    let siteDataForGps: SiteInfo | null = null;
+
+    // GPS 요청을 먼저 시작 (데이터 로드와 병렬 실행)
+    const gpsPromise = new Promise<{ lat: number; lng: number } | null>((resolve) => {
+      if (!("geolocation" in navigator)) {
+        if (isMounted) {
+          setErrorMsg("이 기기는 GPS를 지원하지 않습니다.");
+          setGpsLoading(false);
+        }
+        resolve(null);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const pos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          if (isMounted) {
+            setCurrentPosition(pos);
+          }
+          resolve(pos);
+        },
+        (error) => {
+          console.error("GPS 오류:", error);
+          if (isMounted) {
+            setErrorMsg("위치 정보를 가져올 수 없습니다. GPS를 켜주세요.");
+            setGpsLoading(false);
+          }
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    });
+
     const loadData = async () => {
       try {
         // 1. 현재 유저 정보
@@ -95,8 +132,10 @@ export default function AttendanceCheckPage() {
         } = await supabase.auth.getUser();
 
         if (!user) {
-          setErrorMsg("로그인이 필요합니다.");
-          setLoading(false);
+          if (isMounted) {
+            setErrorMsg("로그인이 필요합니다.");
+            setLoading(false);
+          }
           return;
         }
 
@@ -108,84 +147,72 @@ export default function AttendanceCheckPage() {
           .single();
 
         if (staffError || !staffData) {
-          setErrorMsg("소속 현장이 없습니다.");
-          setLoading(false);
+          if (isMounted) {
+            setErrorMsg("소속 현장이 없습니다.");
+            setLoading(false);
+          }
           return;
         }
 
-        setStaffName(staffData?.name ?? "");
+        if (isMounted) setStaffName(staffData?.name ?? "");
 
-        // 3. 현장 정보 가져오기
-        const { data: siteData, error: siteError } = await supabase
-          .from("sites")
-          .select("*")
-          .eq("id", staffData.site_id)
-          .single();
-
-        if (siteError || !siteData) {
-          setErrorMsg("현장 정보를 불러올 수 없습니다.");
-          setLoading(false);
-          return;
-        }
-
-        setSite(siteData);
-
-        // 4. 오늘 출근 기록 확인
+        // 3. 현장 정보 + 오늘 출근 기록을 병렬로 가져오기
         const today = getTodayKST();
-        const { data: attendanceData } = await supabase
-          .from("attendance")
-          .select("created_at")
-          .eq("user_id", user.id)
-          .eq("site_id", staffData.site_id)
-          .eq("work_date", today)
-          .maybeSingle();
+        const [siteResult, attendanceResult] = await Promise.all([
+          supabase.from("sites").select("*").eq("id", staffData.site_id).single(),
+          supabase
+            .from("attendance")
+            .select("created_at")
+            .eq("user_id", user.id)
+            .eq("site_id", staffData.site_id)
+            .eq("work_date", today)
+            .maybeSingle(),
+        ]);
 
-        if (attendanceData) {
-          setAttendanceStatus({
-            hasCheckedIn: true,
-            checkInTime: new Date(attendanceData.created_at).toLocaleTimeString("ko-KR"),
-          });
+        if (siteResult.error || !siteResult.data) {
+          if (isMounted) {
+            setErrorMsg("현장 정보를 불러올 수 없습니다.");
+            setLoading(false);
+          }
+          return;
         }
 
-        setLoading(false);
+        siteDataForGps = siteResult.data;
+        if (isMounted) setSite(siteResult.data);
+
+        if (attendanceResult.data) {
+          if (isMounted) {
+            setAttendanceStatus({
+              hasCheckedIn: true,
+              checkInTime: new Date(attendanceResult.data.created_at).toLocaleTimeString("ko-KR"),
+            });
+          }
+        }
+
+        if (isMounted) setLoading(false);
+
+        // GPS 결과 대기 후 거리 계산
+        const gpsPos = await gpsPromise;
+        if (gpsPos && siteDataForGps && isMounted) {
+          const dist = calculateDistance(gpsPos.lat, gpsPos.lng, siteDataForGps.lat, siteDataForGps.lng);
+          setDistance(dist);
+          setGpsLoading(false);
+        }
       } catch (error) {
         console.error("데이터 로드 오류:", error);
-        setErrorMsg("데이터를 불러오는 중 오류가 발생했습니다.");
-        setLoading(false);
+        if (isMounted) {
+          setErrorMsg("데이터를 불러오는 중 오류가 발생했습니다.");
+          setLoading(false);
+        }
       }
     };
 
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
-
-  // GPS 위치 가져오기
-  useEffect(() => {
-    if (!site) return;
-
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const pos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setCurrentPosition(pos);
-
-          const dist = calculateDistance(pos.lat, pos.lng, site.lat, site.lng);
-          setDistance(dist);
-          setGpsLoading(false);
-        },
-        (error) => {
-          console.error("GPS 오류:", error);
-          setErrorMsg("위치 정보를 가져올 수 없습니다. GPS를 켜주세요.");
-          setGpsLoading(false);
-        }
-      );
-    } else {
-      setErrorMsg("이 기기는 GPS를 지원하지 않습니다.");
-      setGpsLoading(false);
-    }
-  }, [site]);
 
   // 지도 그리기
   useEffect(() => {

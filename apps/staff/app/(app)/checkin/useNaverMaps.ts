@@ -94,7 +94,7 @@ export function useNaverMaps(): UseNaverMapsResult {
             reject(new Error("NAVER maps script load error (existing script)"));
           });
 
-          // 혹시 load 이벤트를 놓쳤을 수도 있으니 짧게 폴링(최대 2초)
+          // 혹시 load 이벤트를 놓쳤을 수도 있으니 짧게 폴링(최대 1초, 50ms 간격)
           let tries = 0;
           const t = window.setInterval(() => {
             tries += 1;
@@ -104,7 +104,7 @@ export function useNaverMaps(): UseNaverMapsResult {
               window.clearInterval(t);
               reject(new Error("NAVER maps load timeout (existing script)"));
             }
-          }, 100);
+          }, 50);
 
           return;
         }

@@ -42,46 +42,73 @@ export default function StaffHomePage() {
       try {
         const supabase = supabaseAppClient();
 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: staff } = await supabase
-            .from("users_staff")
-            .select("name")
-            .eq("kakao_id", user.id)
-            .single();
-          setUserName(staff?.name || "직원");
-        } else {
-          setUserName("직원");
-        }
-
-        const { data: noticeData, error: noticeError } = await supabase
-          .from("notices")
-          .select("id, title, is_fixed, created_at")
-          .order("is_fixed", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(3);
-
-        if (!noticeError && noticeData) {
-          setNotices(noticeData as Notice[]);
-        }
-
-        // --- 날씨 로직 (캐싱 추가) ---
+        // 날씨 캐시 먼저 확인 (빠른 UI 표시)
         const savedWeather = sessionStorage.getItem("weather_cache");
         if (savedWeather) {
           const parsed = JSON.parse(savedWeather) as WeatherData;
-          const isExpired = Date.now() - parsed.timestamp > 1800000; // 30분(1800000ms) 체크
+          const isExpired = Date.now() - parsed.timestamp > 1800000; // 30분
           if (!isExpired) {
             setWeather(parsed);
-            return;
           }
         }
 
-        if (typeof window !== "undefined" && navigator.geolocation) {
+        // GPS 요청을 먼저 시작 (비동기로 진행)
+        let gpsStarted = false;
+        if (typeof window !== "undefined" && navigator.geolocation && !savedWeather) {
+          gpsStarted = true;
           navigator.geolocation.getCurrentPosition(
             (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
             () => console.warn("위치 권한 거부"),
-            { timeout: 10000 }
+            { timeout: 10000, maximumAge: 300000 }
           );
+        }
+
+        // getUser 후 staff + notices 쿼리를 병렬 실행
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          // 병렬 실행: staff 정보 + 공지사항
+          const [staffResult, noticesResult] = await Promise.all([
+            supabase.from("users_staff").select("name").eq("kakao_id", user.id).single(),
+            supabase.from("notices")
+              .select("id, title, is_fixed, created_at")
+              .order("is_fixed", { ascending: false })
+              .order("created_at", { ascending: false })
+              .limit(3),
+          ]);
+
+          setUserName(staffResult.data?.name || "직원");
+
+          if (!noticesResult.error && noticesResult.data) {
+            setNotices(noticesResult.data as Notice[]);
+          }
+        } else {
+          setUserName("직원");
+
+          // 로그인 안 된 경우 공지사항만 가져오기
+          const { data: noticeData, error: noticeError } = await supabase
+            .from("notices")
+            .select("id, title, is_fixed, created_at")
+            .order("is_fixed", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(3);
+
+          if (!noticeError && noticeData) {
+            setNotices(noticeData as Notice[]);
+          }
+        }
+
+        // 캐시가 만료됐으면 GPS 요청 시작
+        if (!gpsStarted && savedWeather) {
+          const parsed = JSON.parse(savedWeather) as WeatherData;
+          const isExpired = Date.now() - parsed.timestamp > 1800000;
+          if (isExpired && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
+              () => console.warn("위치 권한 거부"),
+              { timeout: 10000, maximumAge: 300000 }
+            );
+          }
         }
       } catch (error) {
         console.error("데이터 로드 중 오류 발생:", error);

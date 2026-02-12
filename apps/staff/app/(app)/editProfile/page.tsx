@@ -54,43 +54,39 @@ export default function EditProfilePage() {
   });
 
   useEffect(() => {
-    fetchStaffInfo();
-    fetchSites();
-  }, []);
+    const loadData = async () => {
+      const supabase = supabaseAppClient();
+      const { data: { user } } = await supabase.auth.getUser();
 
-  const fetchSites = async () => {
-    const supabase = supabaseAppClient();
-    const { data, error } = await supabase
-      .from('sites')
-      .select('id, name')
-      .order('name', { ascending: true });
-    
-    if (!error && data) {
-      setSites(data);
-    }
-  };
+      if (!user) return;
 
-  const fetchStaffInfo = async () => {
-    const supabase = supabaseAppClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      const { data: staff, error: staffError } = await supabase
-        .from('users_staff')
-        .select('site_id, staff_type, phone, rank, hq, team, sales_name, car_model, car_color, car_number')
-        .eq('kakao_id', user.id)
-        .single();
-
-      if (staff && staff.site_id) {
-        const { data: site } = await supabase
+      // 모든 쿼리를 병렬 실행
+      const [staffResult, sitesResult] = await Promise.all([
+        supabase
+          .from('users_staff')
+          .select('site_id, staff_type, phone, rank, hq, team, sales_name, car_model, car_color, car_number')
+          .eq('kakao_id', user.id)
+          .single(),
+        supabase
           .from('sites')
-          .select('name')
-          .eq('id', staff.site_id)
-          .single();
+          .select('id, name')
+          .order('name', { ascending: true }),
+      ]);
+
+      // sites 설정
+      if (!sitesResult.error && sitesResult.data) {
+        setSites(sitesResult.data);
+      }
+
+      // staff 정보 설정
+      if (staffResult.data && staffResult.data.site_id) {
+        const staff = staffResult.data;
+        // sites 결과에서 현재 site 이름 찾기
+        const currentSite = sitesResult.data?.find(s => s.id === staff.site_id);
 
         const data = {
           site_id: staff.site_id || '',
-          site_name: site?.name || '',
+          site_name: currentSite?.name || '',
           staff_type: staff.staff_type || '',
           phone: staff.phone || '',
           rank: staff.rank || '',
@@ -105,8 +101,10 @@ export default function EditProfilePage() {
         setStaffData(data);
         setFormData(data);
       }
-    }
-  };
+    };
+
+    loadData();
+  }, []);
 
   const formatPhoneNumber = (value: string) => {
     const numbers = value.replace(/[^\d]/g, '');
