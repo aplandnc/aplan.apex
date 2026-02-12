@@ -216,9 +216,9 @@ export default function SubmitDocumentPage() {
                 <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
                   <span className="text-gray-600">👤</span>
                   <div>
-                    <p className="text-xs text-gray-600 font-medium">등록자</p>
+                    <p className="text-xs text-gray-600 font-medium">제출자</p>
                     <p className="text-sm font-bold text-gray-800">
-                      {staffInfo.hq}본부 {staffInfo.team}팀 {staffInfo.name} {staffInfo.rank}
+                      {staffInfo.hq} {staffInfo.team} {staffInfo.name} {staffInfo.rank}
                     </p>
                   </div>
                 </div>

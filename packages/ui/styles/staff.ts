@@ -70,7 +70,7 @@ export const staffUi = {
 
   // 카드 스타일 (admin 통일)
   card: "rounded-lg bg-white p-4 shadow",
-  cardLg: "rounded-lg bg-white p-6 shadow-lg",
+  cardLg: "rounded-lg bg-white p-4 shadow-lg",
   cardTopBar: "mb-3 flex items-center justify-between",
 
   // 모달/오버레이 스타일
