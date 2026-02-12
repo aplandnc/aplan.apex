@@ -13,10 +13,12 @@ export async function GET(request: Request) {
 
   const cookieStore = cookies();
   
-  // 임시 응답 객체 생성 (나중에 실제 리다이렉트 경로로 교체될 수 있음)
+  // 기본 리다이렉트 경로 설정
   let redirectPath = "/staff";
   const response = NextResponse.redirect(new URL(redirectPath, url.origin));
 
+  // 2. Supabase 클라이언트 초기화
+  // **주의**: .env 파일에 새로 이관된 Supabase의 URL과 KEY가 들어있는지 반드시 확인하세요.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -35,28 +37,30 @@ export async function GET(request: Request) {
     }
   );
 
-  // 2. 세션 교환 (getUser를 따로 부르지 않고 여기서 유저 정보를 바로 가져옴)
+  // 3. 세션 교환 (카카오 코드를 세션으로 교체)
   const { data: authData, error: authError } = await supabase.auth.exchangeCodeForSession(code);
 
   if (authError || !authData?.user) {
+    console.error("Auth Error:", authError);
     return NextResponse.redirect(new URL("/login", url.origin));
   }
 
   const user = authData.user;
 
-  // 3. 직원 정보 조회
+  // 4. 직원 정보 조회 (users_staff 테이블)
+  // **범인 추적**: 데이터가 예전 같다면 여기서 조회하는 'users_staff' 테이블이 
+  // 새로운 Supabase DB에도 정확히 이관되었는지 확인이 필요합니다.
   const { data: staff, error: staffError } = await supabase
     .from("users_staff")
     .select("kakao_id, site_id, staff_type, name, rank, hq, team, sales_name, status")
     .eq("kakao_id", user.id)
     .maybeSingle();
 
-  // 4. 분기 처리 및 리다이렉트 응답 생성
+  // 5. 등록되지 않은 유저 처리
   if (staffError || !staff) {
-    // 등록되지 않은 유저인 경우 /register로 리다이렉트
     const registerResponse = NextResponse.redirect(new URL("/register", url.origin));
 
-    // ✅ 기존 response에 설정된 Supabase 세션 쿠키들을 복사
+    // 기존 response(세션 쿠키 포함)에서 쿠키를 모두 복사
     response.cookies.getAll().forEach((cookie) => {
       registerResponse.cookies.set(cookie.name, cookie.value, { path: "/" });
     });
@@ -65,12 +69,12 @@ export async function GET(request: Request) {
     return registerResponse;
   }
 
-  // 5. 등록된 유저인 경우 쿠키 대량 설정
+  // 6. 등록된 유저 정보 쿠키 설정
   const staffInfo: Record<string, string> = {
     kakao_id: staff.kakao_id ?? user.id,
     site_id: staff.site_id ?? "",
     staff_type: staff.staff_type ?? "",
-    staff_name: staff.name ?? "",
+    staff_name: staff.name ?? "", // 'name' 필드 매핑 확인
     rank: staff.rank ?? "",
     hq: staff.hq ?? "",
     team: staff.team ?? "",
@@ -78,7 +82,6 @@ export async function GET(request: Request) {
     status: staff.status ?? "pending",
   };
 
-  // 기존 response 객체에 쿠키들 주입
   Object.entries(staffInfo).forEach(([key, value]) => {
     response.cookies.set(key, value, { path: "/" });
   });

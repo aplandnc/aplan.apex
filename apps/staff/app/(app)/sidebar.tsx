@@ -58,9 +58,6 @@ export default function Sidebar({
             <div className="text-red-100 text-sm mt-0.5">
               {staffType} {rank && `| ${rank}`}
             </div>
-            <div className="text-red-200 text-xs mt-1 opacity-80">
-              {team} {salesName && `| ${salesName}`}
-            </div>
           </div>
           <button
             onClick={closeSidebar}
