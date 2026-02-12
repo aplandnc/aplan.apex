@@ -53,8 +53,14 @@ export async function GET(request: Request) {
 
   // 4. 분기 처리 및 리다이렉트 응답 생성
   if (staffError || !staff) {
-    // 등록되지 않은 유저인 경우 /register로 리다이렉트 (새 응답 객체 생성)
+    // 등록되지 않은 유저인 경우 /register로 리다이렉트
     const registerResponse = NextResponse.redirect(new URL("/register", url.origin));
+
+    // ✅ 기존 response에 설정된 Supabase 세션 쿠키들을 복사
+    response.cookies.getAll().forEach((cookie) => {
+      registerResponse.cookies.set(cookie.name, cookie.value, { path: "/" });
+    });
+
     registerResponse.cookies.set("kakao_id", user.id, { path: "/" });
     return registerResponse;
   }

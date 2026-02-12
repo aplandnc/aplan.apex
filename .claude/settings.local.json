@@ -8,7 +8,8 @@
       "Bash(pnpm --filter @apex/staff build:*)",
       "Bash(pnpm install)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: Vercel 배포 호환성 수정\n\n- package.json에 engines 필드 추가 \\(Node.js >=18\\)\n- .npmrc에 node-linker=hoisted 추가\n- apps/info의 잘못된 Next.js 버전 수정 \\(14.x.x → 14.1.0\\)\n- apps/admin의 deprecated externalDir을 transpilePackages로 변경\n- apps/staff의 불필요한 experimental.serverActions 제거\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: Vercel 배포 호환성 수정\n\n- package.json에 engines 필드 추가 \\(Node.js >=18\\)\n- .npmrc에 node-linker=hoisted 추가\n- apps/info의 잘못된 Next.js 버전 수정 \\(14.x.x → 14.1.0\\)\n- apps/admin의 deprecated externalDir을 transpilePackages로 변경\n- apps/staff의 불필요한 experimental.serverActions 제거\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(find:*)"
     ]
   }
 }

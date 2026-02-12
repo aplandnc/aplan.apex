@@ -63,7 +63,7 @@ export default function LoginPage() {
             에이플랜 업무 시스템
           </h1>
           <p className={`mt-3 ${staffUi.text.body} text-gray-400 font-medium`}>
-            서비스 이용을 위해 <br className="sm:hidden" />로그인이 필요합니다
+            카카오로 로그인 해주세요
           </p>
         </div>
 
@@ -83,7 +83,7 @@ export default function LoginPage() {
                 인증 정보 확인 중...
               </span>
             ) : (
-              <span className="text-[16px]">카카오로 3초만에 시작하기</span>
+              <span className="text-[16px]">카카오로 로그인</span>
             )}
           </button>
           
