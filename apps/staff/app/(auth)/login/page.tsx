@@ -44,53 +44,57 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`${staffUi.layout.page} flex flex-col items-center justify-center bg-gray-50 min-h-screen`}>
-      <div className="max-w-md w-full px-6 py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
+    <div className={`${staffUi.layout.page} flex flex-col items-center justify-center bg-gray-50 min-h-screen p-6`}>
+      {/* - px-6: 모바일에서 카드 안쪽의 좌우 여백 확보
+         - max-w-sm: 모바일에서 카드가 너무 뚱뚱해지지 않게 너비 제한
+         - shadow-md: 조금 더 부드러운 입체감 부여
+      */}
+      <div className="max-w-sm w-full px-8 py-10 bg-white rounded-[2.5rem] shadow-md border border-gray-100/50">
         <div className="flex flex-col items-center text-center mb-10">
-          {/* 로고 섹션: w-18 대신 w-20(80px) 또는 w-[72px] 등을 사용해야 합니다. */}
-          <div className="mb-8">
+          <div className="mb-6">
             <img 
               src="/logo.svg" 
               alt="Logo" 
-              className="w-20 h-auto object-contain" 
+              className="w-16 h-auto object-contain" 
             />
           </div>
           
-          <h1 className={`${staffUi.text.titleLg} font-bold text-gray-900`}>
+          <h1 className={`${staffUi.text.titleLg} font-extrabold text-gray-900 tracking-tight`}>
             에이플랜 업무 시스템
           </h1>
-          <p className={`mt-2 ${staffUi.text.body} text-gray-500`}>
-            아래 버튼을 눌러 로그인 해주세요
+          <p className={`mt-3 ${staffUi.text.body} text-gray-400 font-medium`}>
+            서비스 이용을 위해 <br className="sm:hidden" />로그인이 필요합니다
           </p>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <button
             onClick={handleKakaoLogin}
             disabled={loading}
-            className={`${staffUi.buttonClass.kakao} w-full flex items-center justify-center gap-2 py-4 rounded-xl font-semibold transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-50`}
+            className={`${staffUi.buttonClass.kakao} w-full flex items-center justify-center gap-2 py-4.5 rounded-2xl font-bold transition-all active:scale-[0.96] hover:brightness-95 disabled:opacity-50 shadow-sm`}
+            style={{ height: '56px' }} // 모바일 터치 타겟 최적화
           >
             {loading ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2 text-sm">
                 <svg className="animate-spin h-5 w-5 text-current" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                연결 중...
+                인증 정보 확인 중...
               </span>
             ) : (
-              "카카오 로그인"
+              <span className="text-[16px]">카카오로 3초만에 시작하기</span>
             )}
           </button>
           
-          <p className="text-center text-xs text-gray-400 mt-6 leading-relaxed">
+          <p className="text-center text-[11px] text-gray-400 mt-6 leading-relaxed opacity-80">
             로그인 시 서비스 이용약관 및 <br/>개인정보 처리방침에 동의하게 됩니다.
           </p>
         </div>
       </div>
       
-      <footer className="mt-8 text-sm text-gray-400">
-        © 2026 APLAN Corp. All rights reserved.
+      <footer className="mt-10 text-[12px] text-gray-300 font-medium">
+        © 2026 APLAN Corp.
       </footer>
     </div>
   );
