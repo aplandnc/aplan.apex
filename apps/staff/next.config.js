@@ -4,6 +4,7 @@ const nextConfig = {
     "@apex/config",
     "@apex/auth",
     "@apex/ui",
+    "@apex/utils",
   ],
 };
 

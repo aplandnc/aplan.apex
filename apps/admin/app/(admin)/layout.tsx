@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, useMemo, useRef, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabaseAppClient } from "@apex/config";
@@ -9,18 +9,36 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
+interface AdminInfo {
+  name: string;
+  code: string;
+}
+
+interface CachedAdminInfo extends AdminInfo {
+  cachedAt: number;
+}
+
+// 캐시 유효 시간 (5분)
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const [adminInfo, setAdminInfo] = useState<{ name: string; code: string }>({
+  // Supabase 클라이언트를 useMemo로 캐시
+  const supabase = useMemo(() => supabaseAppClient(), []);
+
+  // 이미 갱신 요청을 했는지 추적
+  const hasRefreshed = useRef(false);
+
+  const [adminInfo, setAdminInfo] = useState<AdminInfo>({
     name: "admin@aplan",
     code: "A",
   });
 
   // 코드명 변환 함수
   const getCodeName = (code: string): string => {
-    const codeMap: { [key: string]: string } = {
+    const codeMap: Record<string, string> = {
       A: "Code Alpha",
       B: "Code Bravo",
       C: "Code Charlie",
@@ -29,26 +47,38 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return codeMap[code] || code;
   };
 
-  // 즉시 로딩: localStorage -> 화면에 바로 뿌리고, 백그라운드로 한 번만 갱신
+  // 캐시 유효성 검사 함수
+  const isCacheValid = (cached: CachedAdminInfo | null): cached is CachedAdminInfo => {
+    if (!cached?.name || !cached?.code || !cached?.cachedAt) return false;
+    return Date.now() - cached.cachedAt < CACHE_TTL_MS;
+  };
+
+  // 즉시 로딩: localStorage -> 화면에 바로 뿌리고, 캐시가 만료된 경우만 갱신
   useEffect(() => {
     let cancelled = false;
 
     // 1) 로컬 캐시 먼저 적용(즉시)
+    let cachedData: CachedAdminInfo | null = null;
     try {
       const cached = localStorage.getItem("admin_info");
       if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed?.name && parsed?.code && !cancelled) {
-          setAdminInfo({ name: parsed.name, code: parsed.code });
+        cachedData = JSON.parse(cached);
+        if (cachedData?.name && cachedData?.code && !cancelled) {
+          setAdminInfo({ name: cachedData.name, code: cachedData.code });
         }
       }
     } catch {
       // ignore
     }
 
-    // 2) 백그라운드 갱신(필요할 때만)
+    // 2) 캐시가 유효하면 갱신 스킵, 만료됐거나 없으면 갱신
+    if (isCacheValid(cachedData) || hasRefreshed.current) {
+      return;
+    }
+
+    hasRefreshed.current = true;
+
     const refresh = async () => {
-      const supabase = supabaseAppClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -64,7 +94,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       if (!cancelled && data && !error) {
         setAdminInfo(data);
         try {
-          localStorage.setItem("admin_info", JSON.stringify(data));
+          const dataWithTimestamp: CachedAdminInfo = {
+            ...data,
+            cachedAt: Date.now(),
+          };
+          localStorage.setItem("admin_info", JSON.stringify(dataWithTimestamp));
         } catch {
           // ignore
         }
@@ -76,7 +110,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [supabase]);
 
   const menuItems = [
     { type: "single", name: "대시보드", path: "/", icon: "📊" },
@@ -99,10 +133,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     if (confirm("로그아웃 하시겠습니까?")) {
-      const supabase = supabaseAppClient();
       await supabase.auth.signOut();
 
-      // 세션 쿠키 삭제
+      // 캐시 및 쿠키 삭제
+      try {
+        localStorage.removeItem("admin_info");
+      } catch {
+        // ignore
+      }
       document.cookie = "apex-session=; path=/; max-age=0";
 
       router.push("/login");

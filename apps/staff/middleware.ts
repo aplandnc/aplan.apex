@@ -55,14 +55,14 @@ export async function middleware(req: NextRequest) {
         get(name: string) {
           return req.cookies.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: { path?: string; maxAge?: number; domain?: string; secure?: boolean; sameSite?: "lax" | "strict" | "none" }) {
           res.cookies.set({
             name,
             value,
             ...options,
           });
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: { path?: string; domain?: string }) {
           res.cookies.set({
             name,
             value: "",

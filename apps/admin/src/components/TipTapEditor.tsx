@@ -7,13 +7,23 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
-import { Extension } from "@tiptap/core";
+import { Extension, ChainedCommands } from "@tiptap/core";
 import { useEffect, useState, useRef } from "react";
+
+// FontSize 커맨드 타입 선언
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    fontSize: {
+      setFontSize: (fontSize: string) => ReturnType;
+      unsetFontSize: () => ReturnType;
+    };
+  }
+}
 
 // FontSize Extension 직접 생성
 const FontSize = Extension.create({
   name: 'fontSize',
-  
+
   addOptions() {
     return {
       types: ['textStyle'],
@@ -27,8 +37,8 @@ const FontSize = Extension.create({
         attributes: {
           fontSize: {
             default: null,
-            parseHTML: element => element.style.fontSize?.replace(/['"]+/g, ''),
-            renderHTML: attributes => {
+            parseHTML: (element: HTMLElement) => element.style.fontSize?.replace(/['"]+/g, ''),
+            renderHTML: (attributes: Record<string, string | null>) => {
               if (!attributes.fontSize) {
                 return {};
               }
@@ -44,13 +54,13 @@ const FontSize = Extension.create({
 
   addCommands() {
     return {
-      setFontSize: (fontSize: string) => ({ chain }) => {
+      setFontSize: (fontSize: string) => ({ chain }: { chain: () => ChainedCommands }) => {
         return chain().setMark('textStyle', { fontSize }).run();
       },
-      unsetFontSize: () => ({ chain }) => {
+      unsetFontSize: () => ({ chain }: { chain: () => ChainedCommands }) => {
         return chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
       },
-    } as any;
+    };
   },
 });
 

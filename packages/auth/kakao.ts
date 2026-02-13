@@ -1,5 +1,7 @@
-'use client';
-
+/**
+ * 카카오 인증 관련 클라이언트 함수들
+ * 주의: 이 함수들은 클라이언트 컴포넌트('use client')에서만 사용해야 합니다.
+ */
 import { supabaseAppClient } from '@apex/config';
 
 /**

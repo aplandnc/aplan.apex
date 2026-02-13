@@ -25,7 +25,8 @@
       "@apex/config/*": ["../../packages/config/src/*"],
       "@apex/auth": ["../../packages/auth/src"],
       "@apex/auth/*": ["../../packages/auth/src/*"],
-      "@apex/ui/*": ["../../packages/ui/*"]
+      "@apex/ui/*": ["../../packages/ui/*"],
+      "@apex/utils": ["../../packages/utils/index.ts"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
