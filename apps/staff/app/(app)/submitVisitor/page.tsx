@@ -6,15 +6,18 @@ import { supabaseAppClient } from "@apex/config";
 import { staffUi } from "@apex/ui/styles/staff";
 
 interface StaffInfo {
+  id: string;
   name: string;
   rank: string;
   hq: string;
   team: string;
+  site_id: string;
   site_name: string;
 }
 
 export default function SubmitVisitorPage() {
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     customerName: '',
     phone: '',
@@ -27,53 +30,46 @@ export default function SubmitVisitorPage() {
   }, []);
 
   const fetchStaffInfo = async () => {
-    const supabase = supabaseAppClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      const { data: staff, error: staffError } = await supabase
-        .from('users_staff')
-        .select('name, rank, hq, team, site_id')
-        .eq('kakao_id', user.id)
-        .single();
-
-      console.log('Staff data:', staff, 'Error:', staffError);
-
-      if (staff && staff.site_id) {
-        const { data: site, error: siteError } = await supabase
-          .from('sites')
-          .select('name')
-          .eq('id', staff.site_id)
+    try {
+      const supabase = supabaseAppClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: staff } = await supabase
+          .from('users_staff')
+          .select('id, name, rank, hq, team, site_id')
+          .eq('kakao_id', user.id)
           .single();
 
-        console.log('Site data:', site, 'Error:', siteError);
+        if (staff && staff.site_id) {
+          const { data: site } = await supabase
+            .from('sites')
+            .select('name')
+            .eq('id', staff.site_id)
+            .single();
 
-        setStaffInfo({
-          name: staff.name || '',
-          rank: staff.rank || '',
-          hq: staff.hq || '',
-          team: staff.team || '',
-          site_name: site?.name || '',
-        });
+          setStaffInfo({
+            id: staff.id,
+            name: staff.name || '',
+            rank: staff.rank || '',
+            hq: staff.hq || '',
+            team: staff.team || '',
+            site_id: staff.site_id,
+            site_name: site?.name || '',
+          });
+        }
       }
+    } catch (error) {
+      console.error('Error fetching staff info:', error);
     }
   };
 
   const formatPhoneNumber = (value: string) => {
     const numbers = value.replace(/[^\d]/g, '');
-    
-    // 4자리: 그대로
     if (numbers.length <= 4) return numbers;
-    
-    // 5~6자리: 0-0000 또는 00-0000
     if (numbers.length <= 6) {
-      if (numbers.length === 5) {
-        return `${numbers.slice(0, 1)}-${numbers.slice(1)}`;
-      }
-      return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
+      return numbers.length === 5 ? `${numbers.slice(0, 1)}-${numbers.slice(1)}` : `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
     }
-    
-    // 전체 전화번호
     if (numbers.length <= 10) {
       if (numbers.length <= 3) return numbers;
       if (numbers.length <= 6) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
@@ -86,11 +82,10 @@ export default function SubmitVisitorPage() {
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setFormData({ ...formData, phone: formatted });
+    setFormData(prev => ({ ...prev, phone: formatPhoneNumber(e.target.value) }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.customerName || !formData.phone || !formData.visitDate) {
@@ -98,8 +93,50 @@ export default function SubmitVisitorPage() {
       return;
     }
 
-    console.log('제출 데이터:', formData);
-    // TODO: DB 저장 로직
+    if (!staffInfo) {
+      alert('직원 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    setLoading(true);
+    const supabase = supabaseAppClient();
+
+    const cleanName = formData.customerName.replace(/\s+/g, '');
+    const purePhone = formData.phone.replace(/[^\d]/g, '');
+    const phoneIndex = purePhone.length >= 4 ? purePhone.slice(-4) : purePhone;
+
+    try {
+      const { error } = await supabase
+        .from('visitor_reserved')
+        .insert([
+          {
+            site_id: staffInfo.site_id,
+            user_id: staffInfo.id,
+            guest_name: cleanName,
+            phone: formData.phone,
+            phone_index: phoneIndex,
+            visit_plan: formData.visitDate,
+            memo: formData.memo,
+          }
+        ]);
+
+      if (error) throw error;
+
+      alert('방문예정고객이 등록되었습니다');
+      
+      setFormData({
+        customerName: '',
+        phone: '',
+        visitDate: '',
+        memo: '',
+      });
+
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('등록 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -110,7 +147,6 @@ export default function SubmitVisitorPage() {
           <div className={staffUi.card}>
             {staffInfo ? (
               <div className="space-y-2.5">
-                {/* 등록현장 */}
                 <div className="flex items-center gap-2 p-2.5 bg-blue-50 rounded-lg">
                   <span className="text-blue-600">📍</span>
                   <div>
@@ -118,8 +154,6 @@ export default function SubmitVisitorPage() {
                     <p className="text-sm font-bold text-gray-800">{staffInfo.site_name}</p>
                   </div>
                 </div>
-                
-                {/* 등록자 정보 */}
                 <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
                   <span className="text-gray-600">👤</span>
                   <div>
@@ -140,7 +174,6 @@ export default function SubmitVisitorPage() {
             <h2 className="text-base font-bold text-gray-800 mb-4">방문예정 등록</h2>
             
             <form onSubmit={handleSubmit} className="space-y-3">
-              {/* 고객명 */}
               <div>
                 <label className={staffUi.form.label}>
                   고객명 <span className="text-red-500">*</span>
@@ -154,7 +187,6 @@ export default function SubmitVisitorPage() {
                 />
               </div>
 
-              {/* 연락처 */}
               <div>
                 <label className={staffUi.form.label}>
                   연락처 <span className="text-red-500">*</span>
@@ -169,7 +201,6 @@ export default function SubmitVisitorPage() {
                 />
               </div>
 
-              {/* 방문예정일 */}
               <div>
                 <label className={staffUi.form.label}>
                   방문예정일 <span className="text-red-500">*</span>
@@ -179,15 +210,11 @@ export default function SubmitVisitorPage() {
                   value={formData.visitDate}
                   onChange={(e) => setFormData({ ...formData, visitDate: e.target.value })}
                   className={staffUi.inputClass()}
-                  placeholder="방문예정일을 선택하세요"
                 />
               </div>
 
-              {/* 메모 */}
               <div>
-                <label className={staffUi.form.label}>
-                  메모
-                </label>
+                <label className={staffUi.form.label}>메모</label>
                 <input
                   type="text"
                   value={formData.memo}
@@ -197,10 +224,13 @@ export default function SubmitVisitorPage() {
                 />
               </div>
 
-              {/* 제출 버튼 */}
               <div className="pt-2">
-                <button type="submit" className={staffUi.buttonClass.primary}>
-                  등록하기
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className={`${staffUi.buttonClass.primary} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {loading ? '등록 중...' : '등록하기'}
                 </button>
               </div>
             </form>

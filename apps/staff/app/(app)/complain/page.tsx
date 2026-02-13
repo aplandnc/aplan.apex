@@ -7,21 +7,21 @@ import { staffUi } from "@apex/ui/styles/staff";
 interface Complaint {
   id: string;
   site_id: string;
-  staff_kakao_id: string;
+  user_id: string;
   content: string;
   status: string;
   reply: string | null;
   created_at: string;
 }
 
-export default function ComplaintsPage() {
+export default function complainPage() {
   const supabase = supabaseAppClient();
 
   const [loading, setLoading] = useState(true);
   const [staffName, setStaffName] = useState<string>("");
   const [siteId, setSiteId] = useState<string>("");
   const [content, setContent] = useState("");
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [complain, setcomplain] = useState<Complaint[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -29,6 +29,8 @@ export default function ComplaintsPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        setLoading(true);
+        // 1. 현재 로그인한 유저 정보 가져오기
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -39,14 +41,17 @@ export default function ComplaintsPage() {
           return;
         }
 
+        // 2. 직원 정보 가져오기 (kakao_id -> user_id 로 수정됨)
+        // 만약 여기서 에러가 난다면 DB의 컬럼명이 정확히 'user_id'인지 재확인 필요합니다.
         const { data: staffData, error: staffError } = await supabase
           .from("users_staff")
           .select("name, site_id")
-          .eq("kakao_id", user.id)
+          .eq("kakao_id", user.id) // 컬럼명 수정 완료
           .single();
 
         if (staffError || !staffData) {
-          setErrorMsg("직원 정보를 불러올 수 없습니다.");
+          console.error("Staff Data Error:", staffError);
+          setErrorMsg("직원 정보를 불러올 수 없습니다. (DB 컬럼 확인 필요)");
           setLoading(false);
           return;
         }
@@ -54,42 +59,18 @@ export default function ComplaintsPage() {
         setStaffName(staffData.name);
         setSiteId(staffData.site_id);
 
-        // 더미 데이터 (실제로는 아래 주석 해제)
-        setComplaints([
-          {
-            id: "1",
-            site_id: staffData.site_id,
-            staff_kakao_id: user.id,
-            content: "휴게실 에어컨이 고장났어요. 수리 부탁드립니다.",
-            status: "replied",
-            reply: "확인했습니다. 내일 오전에 수리 기사님이 방문 예정입니다.",
-            created_at: "2025-01-20T10:30:00",
-          },
-          {
-            id: "2",
-            site_id: staffData.site_id,
-            staff_kakao_id: user.id,
-            content: "주차 공간이 부족합니다",
-            status: "pending",
-            reply: null,
-            created_at: "2025-01-23T14:20:00",
-          },
-        ]);
-
-        // 실제 데이터 로드 (더미 대신 사용)
-        /*
-        const { data: complaintsData, error: complaintsError } = await supabase
-          .from("complaints")
+        // 3. 실제 민원 목록 로드 (더미 데이터 제거 및 실제 쿼리 활성화)
+        const { data: complainData, error: complainError } = await supabase
+          .from("complain")
           .select("*")
-          .eq("staff_kakao_id", user.id)
+          .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        if (complaintsError) {
-          console.error("민원 목록 로드 오류:", complaintsError);
+        if (complainError) {
+          console.error("민원 목록 로드 오류:", complainError);
         } else {
-          setComplaints(complaintsData || []);
+          setcomplain(complainData || []);
         }
-        */
 
         setLoading(false);
       } catch (error) {
@@ -100,7 +81,7 @@ export default function ComplaintsPage() {
     };
 
     loadData();
-  }, []);
+  }, [supabase]);
 
   const handleSubmit = async () => {
     if (!content.trim()) {
@@ -121,11 +102,12 @@ export default function ComplaintsPage() {
         return;
       }
 
+      // 민원 저장 시에도 user_id 사용
       const { data, error } = await supabase
-        .from("complaints")
+        .from("complain")
         .insert({
           site_id: siteId,
-          staff_kakao_id: user.id,
+          user_id: user.id,
           content: content.trim(),
           status: "pending",
         })
@@ -137,7 +119,8 @@ export default function ComplaintsPage() {
         alert("민원 등록에 실패했습니다.");
       } else {
         setContent("");
-        setComplaints([data, ...complaints]);
+        // 새 민원을 리스트 최상단에 추가
+        setcomplain([data, ...complain]);
         alert("민원이 등록되었습니다.");
       }
     } catch (error) {
@@ -218,10 +201,10 @@ export default function ComplaintsPage() {
         </div>
 
         {/* 과거 민원 목록 */}
-        {complaints.length > 0 && (
+        {complain.length > 0 && (
           <div className="space-y-2">
             <div className="text-sm font-semibold text-gray-700 px-1">내 마음의 소리</div>
-            {complaints.map((complaint) => (
+            {complain.map((complaint) => (
               <div
                 key={complaint.id}
                 className="rounded-lg bg-white shadow overflow-hidden"
@@ -231,7 +214,6 @@ export default function ComplaintsPage() {
                   onClick={() => toggleExpand(complaint.id)}
                   className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors"
                 >
-                  {/* 답변 상태 아이콘 */}
                   <div className="flex-shrink-0">
                     {complaint.reply ? (
                       <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
@@ -244,19 +226,14 @@ export default function ComplaintsPage() {
                     )}
                   </div>
 
-                  {/* 미리보기 텍스트 */}
                   <div className="flex-1 text-left text-sm text-gray-700 truncate">
-                    {complaint.content.length > 12
-                      ? `${complaint.content.slice(0, 12)}...`
-                      : complaint.content}
+                    {complaint.content}
                   </div>
 
-                  {/* 날짜 */}
                   <div className="flex-shrink-0 text-xs text-gray-500">
                     {formatDate(complaint.created_at)}
                   </div>
 
-                  {/* 펼침 아이콘 */}
                   <div className="flex-shrink-0 text-gray-400">
                     {expandedId === complaint.id ? "▲" : "▼"}
                   </div>
@@ -265,7 +242,6 @@ export default function ComplaintsPage() {
                 {/* 펼쳐진 상태 */}
                 {expandedId === complaint.id && (
                   <div className="px-4 pb-4 pt-2 border-t border-gray-100 space-y-3">
-                    {/* 내용 */}
                     <div>
                       <div className="text-xs font-semibold text-gray-500 mb-1">내용</div>
                       <div className="text-sm text-gray-800 whitespace-pre-wrap">
@@ -273,7 +249,6 @@ export default function ComplaintsPage() {
                       </div>
                     </div>
 
-                    {/* 답변 */}
                     {complaint.reply ? (
                       <div>
                         <div className="text-xs font-semibold text-green-600 mb-1">답변</div>
@@ -291,7 +266,7 @@ export default function ComplaintsPage() {
           </div>
         )}
 
-        {complaints.length === 0 && (
+        {complain.length === 0 && (
           <div className="text-center text-sm text-gray-500 py-8">
             아직 등록된 민원이 없습니다.
           </div>

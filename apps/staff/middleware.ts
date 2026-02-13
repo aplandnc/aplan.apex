@@ -19,6 +19,8 @@ function isPublicPath(pathname: string) {
   if (pathname.startsWith("/assets/")) return true;
   if (pathname.startsWith("/fonts/")) return true;
   if (pathname.startsWith("/icons/")) return true;
+  if (pathname === "/manifest.json") return true;
+  if (pathname === "/sw.js") return true;
   if (pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot)$/)) return true;
 
   // 앱에서 로그인 없이 허용할 페이지
