@@ -159,7 +159,7 @@ export default function SubmitVisitorPage() {
                   <div>
                     <p className="text-xs text-gray-600 font-medium">등록자</p>
                     <p className="text-sm font-bold text-gray-800">
-                      {staffInfo.hq} {staffInfo.team} {staffInfo.name} {staffInfo.rank}
+                      {staffInfo.hq}본부 {staffInfo.team}팀 {staffInfo.name} {staffInfo.rank}
                     </p>
                   </div>
                 </div>

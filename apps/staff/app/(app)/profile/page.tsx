@@ -139,14 +139,14 @@ export default function EditProfilePage() {
                       <span className="text-gray-600">🏢</span>
                       <div className="flex-1">
                         <p className="text-xs text-gray-600">본부</p>
-                        <p className="text-sm font-bold text-gray-800">{staffData.hq || '-'}</p>
+                        <p className="text-sm font-bold text-gray-800">{staffData.hq ? `${staffData.hq}본부` : '-'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
                       <span className="text-gray-600">👥</span>
                       <div className="flex-1">
                         <p className="text-xs text-gray-600">팀</p>
-                        <p className="text-sm font-bold text-gray-800">{staffData.team || '-'}</p>
+                        <p className="text-sm font-bold text-gray-800">{staffData.team ? `${staffData.team}팀` : '-'}</p>
                       </div>
                     </div>
                   </div>

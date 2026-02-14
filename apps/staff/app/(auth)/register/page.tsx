@@ -9,8 +9,10 @@ import { staffUi } from '@apex/ui/styles/staff';
 const STAFF_TYPES: StaffType[] = ['기획', '상담사', 'TM', '큐레이터', '아르바이트', '홍보단', '영업사원', '기타'];
 const RANKS = ['팀장', '부장', '차장', '실장', '과장', '대리'];
 const SALES_RANKS = ['총괄', '팀장', '부장', '차장', '실장', '과장', '대리', '사원', '기타'];
-const HQ_LIST = Array.from({ length: 11 }, (_, i) => `${i}본부`);
-const TEAM_LIST = Array.from({ length: 21 }, (_, i) => `${i}팀`);
+
+// DB 저장을 위해 숫자 문자열만 배열로 생성
+const HQ_LIST = Array.from({ length: 11 }, (_, i) => `${i}`);
+const TEAM_LIST = Array.from({ length: 21 }, (_, i) => `${i}`);
 
 type StaffStatus = 'pending' | 'approved' | 'rejected' | 'inactive' | string | null;
 
@@ -90,7 +92,7 @@ export default function RegisterPage() {
     const { data } = await supabase.auth.getUser();
     const user = data?.user;
     const name = (user?.user_metadata as any)?.name;
-    if (name) setForm(prev => ({ ...prev, name }));
+    if (name) setForm(prev => ({ ...prev, name: name.replace(/\s/g, '') }));
   };
 
   useEffect(() => {
@@ -142,15 +144,15 @@ export default function RegisterPage() {
             ...(prev as any),
             site_id: String(typedRow.site_id ?? prev.site_id ?? ''),
             staff_type: (typedRow.staff_type as any) ?? (prev.staff_type as any),
-            name: String(typedRow.name ?? prev.name ?? ''),
+            name: String(typedRow.name ?? prev.name ?? '').replace(/\s/g, ''),
             phone: String(typedRow.phone ?? prev.phone ?? ''),
             rank: (typedRow.rank as any) ?? (prev as any).rank ?? '',
             hq: (typedRow.hq as any) ?? (prev as any).hq ?? '',
             team: (typedRow.team as any) ?? (prev as any).team ?? '',
-            sales_name: String(typedRow.sales_name ?? (prev as any).sales_name ?? ''),
-            car_model: String(typedRow.car_model ?? (prev as any).car_model ?? ''),
-            car_color: String(typedRow.car_color ?? (prev as any).car_color ?? ''),
-            car_number: String(typedRow.car_number ?? (prev as any).car_number ?? '')
+            sales_name: String(typedRow.sales_name ?? (prev as any).sales_name ?? '').replace(/\s/g, ''),
+            car_model: String(typedRow.car_model ?? (prev as any).car_model ?? '').replace(/\s/g, ''),
+            car_color: String(typedRow.car_color ?? (prev as any).car_color ?? '').replace(/\s/g, ''),
+            car_number: String(typedRow.car_number ?? (prev as any).car_number ?? '').replace(/\s/g, '')
           }));
           setNoCar(false);
           return;
@@ -229,7 +231,7 @@ export default function RegisterPage() {
   const isRejected = staffGate === 'rejected';
 
   return (
-    <div className={`min-h-screen ${staffUi.layout.page} flex flex-col py-12 px-4 apex-cursorfix`}>
+    <div className={`min-h-screen min-h-[100dvh] ${staffUi.layout.page} flex flex-col py-12 px-4 apex-cursorfix`}>
       <style jsx global>{`
         .apex-cursorfix, .apex-cursorfix * { cursor: default !important; }
         .apex-cursorfix input, .apex-cursorfix textarea { cursor: text !important; }
@@ -314,7 +316,14 @@ export default function RegisterPage() {
 
               <div className={staffUi.form.field}>
                 <label className={staffUi.form.label}>성명 (본명)</label>
-                <input type="text" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={staffUi.inputClass()} placeholder="실명을 입력해주세요" />
+                <input 
+                  type="text" 
+                  required 
+                  value={form.name} 
+                  onChange={e => setForm({ ...form, name: e.target.value.replace(/\s/g, '') })} 
+                  className={staffUi.inputClass()} 
+                  placeholder="실명을 입력해주세요" 
+                />
               </div>
 
               {showSalesFields && (
@@ -338,7 +347,7 @@ export default function RegisterPage() {
                     type="text" 
                     value={(form as any).sales_name || ''} 
                     disabled={!useSalesName}
-                    onChange={e => setForm({ ...(form as any), sales_name: e.target.value })} 
+                    onChange={e => setForm({ ...(form as any), sales_name: e.target.value.replace(/\s/g, '') })} 
                     className={staffUi.inputClass(!useSalesName)} 
                     placeholder="영업명 입력" 
                   />
@@ -359,11 +368,17 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className={staffUi.form.field}>
                     <label className={staffUi.form.label}>본부</label>
-                    <select required value={(form as any).hq || ''} onChange={e => setForm({ ...(form as any), hq: e.target.value })} className={staffUi.selectClass()}><option value="">선택</option>{HQ_LIST.map(hq => (<option key={hq} value={hq}>{hq}</option>))}</select>
+                    <select required value={(form as any).hq || ''} onChange={e => setForm({ ...(form as any), hq: e.target.value })} className={staffUi.selectClass()}>
+                      <option value="">선택</option>
+                      {HQ_LIST.map(hq => (<option key={hq} value={hq}>{hq}본부</option>))}
+                    </select>
                   </div>
                   <div className={staffUi.form.field}>
                     <label className={staffUi.form.label}>팀</label>
-                    <select required value={(form as any).team || ''} onChange={e => setForm({ ...(form as any), team: e.target.value })} className={staffUi.selectClass()}><option value="">선택</option>{TEAM_LIST.map(team => (<option key={team} value={team}>{team}</option>))}</select>
+                    <select required value={(form as any).team || ''} onChange={e => setForm({ ...(form as any), team: e.target.value })} className={staffUi.selectClass()}>
+                      <option value="">선택</option>
+                      {TEAM_LIST.map(team => (<option key={team} value={team}>{team}팀</option>))}
+                    </select>
                   </div>
                   <div className={staffUi.form.field}>
                     <label className={staffUi.form.label}>직급</label>
@@ -380,9 +395,39 @@ export default function RegisterPage() {
               )}
 
               <div className="grid grid-cols-3 gap-2">
-                <div className={staffUi.form.field}><label className={staffUi.form.label}>차종</label><input type="text" value={(form as any).car_model || ''} disabled={noCar} onChange={e => setForm({ ...(form as any), car_model: e.target.value })} className={staffUi.inputClass(noCar)} placeholder="차종" /></div>
-                <div className={staffUi.form.field}><label className={staffUi.form.label}>색상</label><input type="text" value={(form as any).car_color || ''} disabled={noCar} onChange={e => setForm({ ...(form as any), car_color: e.target.value })} className={staffUi.inputClass(noCar)} placeholder="색상" /></div>
-                <div className={staffUi.form.field}><label className={staffUi.form.label}>번호</label><input type="text" value={(form as any).car_number || ''} disabled={noCar} onChange={e => setForm({ ...(form as any), car_number: e.target.value })} className={staffUi.inputClass(noCar)} placeholder="번호" /></div>
+                <div className={staffUi.form.field}>
+                  <label className={staffUi.form.label}>차종</label>
+                  <input 
+                    type="text" 
+                    value={(form as any).car_model || ''} 
+                    disabled={noCar} 
+                    onChange={e => setForm({ ...(form as any), car_model: e.target.value.replace(/\s/g, '') })} 
+                    className={staffUi.inputClass(noCar)} 
+                    placeholder="차종" 
+                  />
+                </div>
+                <div className={staffUi.form.field}>
+                  <label className={staffUi.form.label}>색상</label>
+                  <input 
+                    type="text" 
+                    value={(form as any).car_color || ''} 
+                    disabled={noCar} 
+                    onChange={e => setForm({ ...(form as any), car_color: e.target.value.replace(/\s/g, '') })} 
+                    className={staffUi.inputClass(noCar)} 
+                    placeholder="색상" 
+                  />
+                </div>
+                <div className={staffUi.form.field}>
+                  <label className={staffUi.form.label}>번호</label>
+                  <input 
+                    type="text" 
+                    value={(form as any).car_number || ''} 
+                    disabled={noCar} 
+                    onChange={e => setForm({ ...(form as any), car_number: e.target.value.replace(/\s/g, '') })} 
+                    className={staffUi.inputClass(noCar)} 
+                    placeholder="번호" 
+                  />
+                </div>
               </div>
 
               <div className="flex items-center gap-2 -mt-2">

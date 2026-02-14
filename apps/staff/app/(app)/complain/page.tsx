@@ -14,11 +14,12 @@ interface Complaint {
   created_at: string;
 }
 
-export default function complainPage() {
+export default function ComplainPage() {
   const supabase = supabaseAppClient();
 
   const [loading, setLoading] = useState(true);
   const [staffName, setStaffName] = useState<string>("");
+  const [staffId, setStaffId] = useState<string>("");
   const [siteId, setSiteId] = useState<string>("");
   const [content, setContent] = useState("");
   const [complain, setcomplain] = useState<Complaint[]>([]);
@@ -45,8 +46,8 @@ export default function complainPage() {
         // 만약 여기서 에러가 난다면 DB의 컬럼명이 정확히 'user_id'인지 재확인 필요합니다.
         const { data: staffData, error: staffError } = await supabase
           .from("users_staff")
-          .select("name, site_id")
-          .eq("kakao_id", user.id) // 컬럼명 수정 완료
+          .select("id, name, site_id")
+          .eq("kakao_id", user.id)
           .single();
 
         if (staffError || !staffData) {
@@ -57,13 +58,14 @@ export default function complainPage() {
         }
 
         setStaffName(staffData.name);
+        setStaffId(staffData.id);
         setSiteId(staffData.site_id);
 
-        // 3. 실제 민원 목록 로드 (더미 데이터 제거 및 실제 쿼리 활성화)
+        // 3. 실제 민원 목록 로드 (staff.id 사용)
         const { data: complainData, error: complainError } = await supabase
           .from("complain")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", staffData.id)
           .order("created_at", { ascending: false });
 
         if (complainError) {
@@ -102,12 +104,12 @@ export default function complainPage() {
         return;
       }
 
-      // 민원 저장 시에도 user_id 사용
+      // 민원 저장 시 staff.id 사용
       const { data, error } = await supabase
         .from("complain")
         .insert({
           site_id: siteId,
-          user_id: user.id,
+          user_id: staffId,
           content: content.trim(),
           status: "pending",
         })

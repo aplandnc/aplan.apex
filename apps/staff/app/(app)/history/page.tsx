@@ -14,7 +14,7 @@ export default function AttendanceHistoryPage() {
 
   const [loading, setLoading] = useState(true);
   const [staffName, setStaffName] = useState<string>("");
-  const [userId, setUserId] = useState<string | null>(null); // 캐시된 userId
+  const [staffId, setStaffId] = useState<string | null>(null); // users_staff.id (PK)
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
@@ -60,25 +60,17 @@ export default function AttendanceHistoryPage() {
           return;
         }
 
-        // userId 캐시
-        setUserId(user.id);
-
         const startDate = `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`;
         const endDate = `${currentYear}-${String(currentMonth).padStart(2, "0")}-${String(
           getDaysInMonth(currentYear, currentMonth)
         ).padStart(2, "0")}`;
 
-        // 병렬 실행: staff 정보 + 출근 기록
-        const [staffResult, attendanceResult] = await Promise.all([
-          supabase.from("users_staff").select("name, site_id").eq("kakao_id", user.id).single(),
-          supabase
-            .from("attendance")
-            .select("work_date, created_at")
-            .eq("user_id", user.id)
-            .gte("work_date", startDate)
-            .lte("work_date", endDate)
-            .order("work_date", { ascending: true }),
-        ]);
+        // staff 정보 먼저 조회
+        const staffResult = await supabase
+          .from("users_staff")
+          .select("id, name, site_id")
+          .eq("kakao_id", user.id)
+          .single();
 
         if (staffResult.error || !staffResult.data) {
           setErrorMsg("직원 정보를 불러올 수 없습니다.");
@@ -86,7 +78,19 @@ export default function AttendanceHistoryPage() {
           return;
         }
 
+        // staffId 캐시
+        setStaffId(staffResult.data.id);
         setStaffName(staffResult.data.name);
+
+        // 출근 기록 조회 (staff.id 사용)
+        const attendanceResult = await supabase
+          .from("attendance")
+          .select("work_date, created_at")
+          .eq("user_id", staffResult.data.id)
+          .gte("work_date", startDate)
+          .lte("work_date", endDate)
+          .order("work_date", { ascending: true });
+
         setAttendanceRecords(attendanceResult.data || []);
         setLoading(false);
       } catch (error) {
@@ -99,10 +103,10 @@ export default function AttendanceHistoryPage() {
     loadData();
   }, []);
 
-  // 달력 네비게이션 시 출근 기록만 다시 로드 (캐시된 userId 사용)
+  // 달력 네비게이션 시 출근 기록만 다시 로드 (캐시된 staffId 사용)
   useEffect(() => {
     const loadAttendanceRecords = async () => {
-      if (!userId) return;
+      if (!staffId) return;
 
       try {
         const startDate = `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`;
@@ -113,7 +117,7 @@ export default function AttendanceHistoryPage() {
         const { data, error } = await supabase
           .from("attendance")
           .select("work_date, created_at")
-          .eq("user_id", userId)
+          .eq("user_id", staffId)
           .gte("work_date", startDate)
           .lte("work_date", endDate)
           .order("work_date", { ascending: true });
@@ -130,10 +134,10 @@ export default function AttendanceHistoryPage() {
     };
 
     // 초기 로드가 아닌 경우에만 실행 (달력 네비게이션)
-    if (userId && !loading) {
+    if (staffId && !loading) {
       loadAttendanceRecords();
     }
-  }, [currentYear, currentMonth, userId]);
+  }, [currentYear, currentMonth, staffId]);
 
   const hasAttendance = (day: number): boolean => {
     const dateStr = `${currentYear}-${String(currentMonth).padStart(2, "0")}-${String(day).padStart(

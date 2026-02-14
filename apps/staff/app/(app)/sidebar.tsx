@@ -213,7 +213,7 @@ export default function Sidebar({
             {canDocs && (
               <>
                 <Link
-                  href="/staff/agreement"
+                  href="/submitPledge"
                   className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
                   onClick={closeSidebar}
                 >

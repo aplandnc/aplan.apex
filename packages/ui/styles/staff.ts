@@ -49,7 +49,7 @@ export const staffUi = {
 
   // 레이아웃 스타일
   layout: {
-    page: "bg-gray-50",
+    page: "w-full min-h-full bg-gray-50",
     header: "bg-white border-b border-gray-200 sticky top-0 z-50",
     headerInner: "flex items-center justify-between px-4 py-3",
     headerTitle: "text-lg font-bold",

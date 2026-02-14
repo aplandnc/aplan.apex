@@ -14,12 +14,13 @@ interface WeatherData {
   pm10: number;
   weatherLabel: string;
   weatherIcon: string;
-  timestamp: number; // 캐싱을 위한 시간 기록
+  timestamp: number;
 }
 
 interface Notice {
   id: string;
   title: string;
+  content?: string;
   created_at: string;
   is_fixed: boolean;
 }
@@ -36,23 +37,23 @@ export default function StaffHomePage() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const supabase = supabaseAppClient();
 
-        // 날씨 캐시 먼저 확인 (빠른 UI 표시)
         const savedWeather = sessionStorage.getItem("weather_cache");
         if (savedWeather) {
           const parsed = JSON.parse(savedWeather) as WeatherData;
-          const isExpired = Date.now() - parsed.timestamp > 1800000; // 30분
+          const isExpired = Date.now() - parsed.timestamp > 1800000;
           if (!isExpired) {
             setWeather(parsed);
           }
         }
 
-        // GPS 요청을 먼저 시작 (비동기로 진행)
         let gpsStarted = false;
         if (typeof window !== "undefined" && navigator.geolocation && !savedWeather) {
           gpsStarted = true;
@@ -63,11 +64,9 @@ export default function StaffHomePage() {
           );
         }
 
-        // getUser 후 staff + notices 쿼리를 병렬 실행
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
-          // 병렬 실행: staff 정보 + 공지사항
           const [staffResult, noticesResult] = await Promise.all([
             supabase.from("users_staff").select("name").eq("kakao_id", user.id).single(),
             supabase.from("notices")
@@ -84,8 +83,6 @@ export default function StaffHomePage() {
           }
         } else {
           setUserName("직원");
-
-          // 로그인 안 된 경우 공지사항만 가져오기
           const { data: noticeData, error: noticeError } = await supabase
             .from("notices")
             .select("id, title, is_fixed, created_at")
@@ -98,7 +95,6 @@ export default function StaffHomePage() {
           }
         }
 
-        // 캐시가 만료됐으면 GPS 요청 시작
         if (!gpsStarted && savedWeather) {
           const parsed = JSON.parse(savedWeather) as WeatherData;
           const isExpired = Date.now() - parsed.timestamp > 1800000;
@@ -168,8 +164,27 @@ export default function StaffHomePage() {
     fetchData();
   }, []);
 
+  const handleNoticeClick = async (notice: Notice) => {
+    setSelectedNotice(notice);
+    setIsModalOpen(true);
+
+    // 상세 내용이 없는 경우 Supabase에서 가져옴
+    if (!notice.content) {
+      const supabase = supabaseAppClient();
+      const { data, error } = await supabase
+        .from("notices")
+        .select("content")
+        .eq("id", notice.id)
+        .single();
+
+      if (!error && data) {
+        setSelectedNotice({ ...notice, content: data.content });
+      }
+    }
+  };
+
   return (
-    <div className={`w-full max-w-md mx-auto p-4 bg-white min-h-screen ${staffUi.text.body}`}>
+    <div className={`w-full max-w-md mx-auto p-4 bg-white ${staffUi.text.body}`}>
       <header className="mb-8 mt-4 px-2">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
           {userName ? `${userName}님, 안녕하세요!` : "반갑습니다"}
@@ -245,12 +260,13 @@ export default function StaffHomePage() {
         <div className="space-y-3">
           {notices.length > 0 ? (
             notices.map((notice) => (
-              <div
+              <button
                 key={notice.id}
-                className={`p-4 rounded-xl border transition-colors ${
+                onClick={() => handleNoticeClick(notice)}
+                className={`w-full text-left p-4 rounded-xl border transition-all active:scale-[0.98] ${
                   notice.is_fixed
-                    ? "bg-indigo-50 border-indigo-200"
-                    : "bg-gray-50 border-gray-100 active:bg-gray-100"
+                    ? "bg-indigo-50 border-indigo-200 shadow-sm"
+                    : "bg-gray-50 border-gray-100"
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -268,7 +284,7 @@ export default function StaffHomePage() {
                 <span className="text-[11px] text-gray-400 mt-2 block">
                   {formatDate(notice.created_at)}
                 </span>
-              </div>
+              </button>
             ))
           ) : (
             <div className="text-center py-10 text-gray-400 text-sm">
@@ -277,6 +293,63 @@ export default function StaffHomePage() {
           )}
         </div>
       </div>
+
+      {/* 공지사항 모달 */}
+      {isModalOpen && selectedNotice && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
+          <div 
+            className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    {selectedNotice.is_fixed && (
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">고정공지</span>
+                    )}
+                    <span className="text-[11px] text-gray-400">{formatDate(selectedNotice.created_at)}</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 leading-snug">
+                    {selectedNotice.title}
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="h-[1px] bg-gray-100 w-full mb-5" />
+
+              <div className="max-h-[60vh] overflow-y-auto pr-2">
+                {selectedNotice.content ? (
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
+                    {selectedNotice.content}
+                  </p>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2" />
+                    <p className="text-xs text-gray-400">내용을 불러오는 중입니다...</p>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="w-full mt-8 py-4 bg-gray-900 text-white rounded-xl font-bold text-sm active:bg-gray-800 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+          <div className="fixed inset-0 -z-10" onClick={() => setIsModalOpen(false)} />
+        </div>
+      )}
 
       <footer className="mt-16 text-center text-gray-300 text-[10px] font-medium tracking-widest uppercase pb-10">
         APLAN D & C

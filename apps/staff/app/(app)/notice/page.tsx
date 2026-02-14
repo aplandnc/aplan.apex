@@ -55,7 +55,7 @@ export default function NoticesPage() {
   const closeNotice = () => setSelectedNotice(null);
 
   return (
-    <div className={`w-full max-w-md mx-auto p-4 bg-white min-h-screen ${staffUi.text.body}`}>
+    <div className={`w-full max-w-md mx-auto p-4 bg-white ${staffUi.text.body}`}>
       <header className="mb-6 mt-4 px-2">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
           공지사항

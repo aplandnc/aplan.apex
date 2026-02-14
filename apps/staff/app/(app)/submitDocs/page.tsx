@@ -7,10 +7,13 @@ import { supabaseAppClient } from "@apex/config";
 import { staffUi } from "@apex/ui/styles/staff";
 
 interface StaffInfo {
+  id: string;
   name: string;
+  sales_name: string | null;
   rank: string;
   hq: string;
   team: string;
+  site_id: string;
   site_name: string;
 }
 
@@ -29,6 +32,7 @@ export default function SubmitDocumentPage() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isTaxInvoice, setIsTaxInvoice] = useState(false);
   const [isCombinedIdBank, setIsCombinedIdBank] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -60,18 +64,15 @@ export default function SubmitDocumentPage() {
 
       if (!user) return;
 
-      // 모든 쿼리를 병렬 실행
       const [staffResult, banksResult] = await Promise.all([
-        supabase.from('users_staff').select('name, rank, hq, team, site_id').eq('kakao_id', user.id).single(),
+        supabase.from('users_staff').select('id, name, sales_name, rank, hq, team, site_id').eq('kakao_id', user.id).single(),
         supabase.from('banks').select('code, name').order('name'),
       ]);
 
-      // banks 설정
       if (banksResult.data && !banksResult.error) {
         setBanks(banksResult.data);
       }
 
-      // staff 정보 + site 이름 가져오기
       if (staffResult.data && staffResult.data.site_id) {
         const staff = staffResult.data;
         const { data: site } = await supabase
@@ -81,14 +82,16 @@ export default function SubmitDocumentPage() {
           .single();
 
         setStaffInfo({
+          id: staff.id,
           name: staff.name || '',
+          sales_name: staff.sales_name || null,
           rank: staff.rank || '',
           hq: staff.hq || '',
           team: staff.team || '',
+          site_id: staff.site_id,
           site_name: site?.name || '',
         });
 
-        // 예금주 기본값 설정
         setFormData(prev => ({
           ...prev,
           accountHolder: staff.name || '',
@@ -100,6 +103,67 @@ export default function SubmitDocumentPage() {
     loadData();
   }, []);
 
+  // ─── 이미지 압축 (최대 1280px, quality 0.7) ───
+  const compressImage = (file: File, maxWidth = 1280, quality = 0.7): Promise<File> => {
+    return new Promise((resolve) => {
+      if (file.type === 'application/pdf') {
+        resolve(file);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+            } else {
+              resolve(file);
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // ─── 파일명 규칙: {현장명}_{본부}_{팀}_{이름}_{서류종류}.{ext} ───
+  const DOC_TYPE_LABEL: Record<string, string> = {
+    registration: '등본',
+    idCard: '신분증',
+    idCardCombined: '신분증 및 통장사본',
+    bankbook: '통장사본',
+  };
+
+  const buildFileName = (docType: string, ext: string) => {
+    const parts: string[] = [];
+
+    parts.push(staffInfo?.site_name || '미지정');
+    if (staffInfo?.hq) parts.push(staffInfo.hq);
+    if (staffInfo?.team) parts.push(staffInfo.team);
+    parts.push(staffInfo?.sales_name || staffInfo?.name || '미입력');
+    parts.push(DOC_TYPE_LABEL[docType] || docType);
+
+    return `${parts.join('_')}.${ext}`;
+  };
+
+  // ─── 포맷 함수들 ───
   const formatResidentNumber = (value: string) => {
     const numbers = value.replace(/[^\d]/g, '');
     if (numbers.length <= 6) return numbers;
@@ -125,6 +189,7 @@ export default function SubmitDocumentPage() {
     }).open();
   };
 
+  // ─── 파일 선택 (선택 시점에 압축) ───
   const handleFileSelect = (type: 'camera' | 'upload', docType: keyof typeof documents) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -133,14 +198,15 @@ export default function SubmitDocumentPage() {
       input.setAttribute('capture', 'environment');
     }
     
-    input.onchange = (e: Event) => {
+    input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
       const file = target.files?.[0];
       if (file) {
-        const preview = URL.createObjectURL(file);
+        const compressed = await compressImage(file);
+        const preview = URL.createObjectURL(compressed);
         setDocuments(prev => ({
           ...prev,
-          [docType]: { file, preview }
+          [docType]: { file: compressed, preview }
         }));
       }
     };
@@ -148,10 +214,10 @@ export default function SubmitDocumentPage() {
     input.click();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ─── 제출 ───
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 기본 정보 검사
     if (!formData.name || !formData.residentNumber || !formData.addressMain || !formData.addressDetail) {
       alert('기본 정보를 모두 입력해주세요.');
       return;
@@ -162,7 +228,6 @@ export default function SubmitDocumentPage() {
       return;
     }
 
-    // 세금계산서 체크 시 세금계산서 정보 검사
     if (isTaxInvoice) {
       if (!formData.companyName || !formData.businessNumber || !formData.taxBank || !formData.taxAccountHolder || !formData.taxAccountNumber) {
         alert('세금계산서 정보를 모두 입력해주세요.');
@@ -170,20 +235,120 @@ export default function SubmitDocumentPage() {
       }
     }
 
-    // 서류 검사
     if (!documents.registration.file || !documents.idCard.file) {
       alert('주민등록표등본과 신분증을 첨부해주세요.');
       return;
     }
 
-    // 체크 안했을 때는 통장 사본 필수
     if (!isCombinedIdBank && !documents.bankbook.file) {
       alert('통장 사본을 첨부해주세요.');
       return;
     }
 
-    console.log('제출 데이터:', formData, documents);
-    // TODO: DB 저장 및 파일 업로드 로직
+    if (!staffInfo?.id || !staffInfo?.site_id) {
+      alert('사용자 정보를 불러올 수 없습니다.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const supabase = supabaseAppClient();
+      const siteName = staffInfo.site_name || '미지정';
+      const uploadedPaths: Record<string, string> = {};
+
+      // ── 파일 업로드 ──
+
+      // 1) 등본
+      if (documents.registration.file) {
+        const ext = documents.registration.file.type === 'application/pdf' ? 'pdf' : 'jpg';
+        const fileName = buildFileName('registration', ext);
+        const storagePath = `${siteName}/${fileName}`;
+
+        const { error } = await supabase.storage
+          .from('staff_docs')
+          .upload(storagePath, documents.registration.file, {
+            contentType: documents.registration.file.type,
+            upsert: false,
+          });
+        if (error) throw new Error(`등본 업로드 실패: ${error.message}`);
+        uploadedPaths.registration = storagePath;
+      }
+
+      // 2) 신분증 (한 장 사진이면 파일명을 "신분증 및 통장사본"으로)
+      if (documents.idCard.file) {
+        const docTypeKey = isCombinedIdBank ? 'idCardCombined' : 'idCard';
+        const ext = documents.idCard.file.type === 'application/pdf' ? 'pdf' : 'jpg';
+        const fileName = buildFileName(docTypeKey, ext);
+        const storagePath = `${siteName}/${fileName}`;
+
+        const { error } = await supabase.storage
+          .from('staff_docs')
+          .upload(storagePath, documents.idCard.file, {
+            contentType: documents.idCard.file.type,
+            upsert: false,
+          });
+        if (error) throw new Error(`신분증 업로드 실패: ${error.message}`);
+        uploadedPaths.idCard = storagePath;
+      }
+
+      // 3) 통장사본 (한 장 사진이 아닐 때만)
+      if (!isCombinedIdBank && documents.bankbook.file) {
+        const ext = documents.bankbook.file.type === 'application/pdf' ? 'pdf' : 'jpg';
+        const fileName = buildFileName('bankbook', ext);
+        const storagePath = `${siteName}/${fileName}`;
+
+        const { error } = await supabase.storage
+          .from('staff_docs')
+          .upload(storagePath, documents.bankbook.file, {
+            contentType: documents.bankbook.file.type,
+            upsert: false,
+          });
+        if (error) throw new Error(`통장사본 업로드 실패: ${error.message}`);
+        uploadedPaths.bankbook = storagePath;
+      }
+
+      // ── DB 저장 ──
+      const address = [formData.zipCode, formData.addressMain, formData.addressDetail].filter(Boolean).join(' ');
+
+      const idCardUrl = uploadedPaths.idCard || null;
+      const bankAccountUrl = isCombinedIdBank
+        ? uploadedPaths.idCard || null
+        : uploadedPaths.bankbook || null;
+
+      const { error: dbError } = await supabase
+        .from('users_staff_docs')
+        .insert({
+          user_id: staffInfo.id,
+          site_id: staffInfo.site_id,
+          name: formData.name,
+          resident_number: formData.residentNumber,
+          address,
+          bank_type: formData.bank,
+          bank_name: formData.accountHolder,
+          bank_number: formData.accountNumber,
+          is_invoice: isTaxInvoice,
+          invoice_bank_type: isTaxInvoice ? formData.taxBank : null,
+          invoice_bank_name: isTaxInvoice ? formData.taxAccountHolder : null,
+          invoice_bank_number: isTaxInvoice ? formData.taxAccountNumber : null,
+          same_photo_check: isCombinedIdBank,
+          resi_doc_url: uploadedPaths.registration || null,
+          id_card_url: idCardUrl,
+          bank_account_url: bankAccountUrl,
+          submitted_at: new Date().toISOString(),
+          status: 'submitted',
+        });
+
+      if (dbError) throw new Error(`저장 실패: ${dbError.message}`);
+
+      alert('서류가 제출되었습니다.');
+      // TODO: 완료 페이지 이동
+
+    } catch (err: any) {
+      alert(err.message || '제출 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -192,7 +357,7 @@ export default function SubmitDocumentPage() {
         src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" 
         strategy="lazyOnload"
       />
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
+      <div className="bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
       <div className={staffUi.layout.main}>
         <div className="space-y-3">
           {/* 등록현장/등록자 정보 */}
@@ -212,7 +377,7 @@ export default function SubmitDocumentPage() {
                   <div>
                     <p className="text-xs text-gray-600 font-medium">제출자</p>
                     <p className="text-sm font-bold text-gray-800">
-                      {staffInfo.hq} {staffInfo.team} {staffInfo.name} {staffInfo.rank}
+                      {staffInfo.hq}본부 {staffInfo.team}팀 {staffInfo.name} {staffInfo.rank}
                     </p>
                   </div>
                 </div>
@@ -264,7 +429,6 @@ export default function SubmitDocumentPage() {
                   주소
                 </label>
                 <div className="space-y-2">
-                  {/* 우편번호 + 검색 버튼 */}
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -281,7 +445,6 @@ export default function SubmitDocumentPage() {
                       주소검색
                     </button>
                   </div>
-                  {/* 기본주소 */}
                   <input
                     type="text"
                     value={formData.addressMain}
@@ -289,7 +452,6 @@ export default function SubmitDocumentPage() {
                     className={staffUi.inputClass()}
                     placeholder="기본주소"
                   />
-                  {/* 상세주소 */}
                   <input
                     type="text"
                     value={formData.addressDetail}
@@ -370,11 +532,8 @@ export default function SubmitDocumentPage() {
               </div>
               
               <div className="p-4 space-y-3">
-                {/* 법인명 */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                    법인명
-                  </label>
+                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">법인명</label>
                   <input
                     type="text"
                     value={formData.companyName}
@@ -384,11 +543,8 @@ export default function SubmitDocumentPage() {
                   />
                 </div>
 
-                {/* 사업자번호 */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                    사업자번호
-                  </label>
+                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">사업자번호</label>
                   <input
                     type="text"
                     value={formData.businessNumber}
@@ -399,11 +555,8 @@ export default function SubmitDocumentPage() {
                   />
                 </div>
 
-                {/* 은행 선택 */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                    은행
-                  </label>
+                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">은행</label>
                   <select
                     value={formData.taxBank}
                     onChange={(e) => setFormData({ ...formData, taxBank: e.target.value })}
@@ -411,18 +564,13 @@ export default function SubmitDocumentPage() {
                   >
                     <option value="">은행을 선택하세요</option>
                     {banks.map((bank) => (
-                      <option key={bank.code} value={bank.name}>
-                        {bank.name}
-                      </option>
+                      <option key={bank.code} value={bank.name}>{bank.name}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* 예금주 */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                    예금주
-                  </label>
+                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">예금주</label>
                   <input
                     type="text"
                     value={formData.taxAccountHolder}
@@ -432,11 +580,8 @@ export default function SubmitDocumentPage() {
                   />
                 </div>
 
-                {/* 계좌번호 */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                    계좌번호
-                  </label>
+                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">계좌번호</label>
                   <input
                     type="text"
                     value={formData.taxAccountNumber}
@@ -499,10 +644,12 @@ export default function SubmitDocumentPage() {
                 </div>
               </div>
 
-              {/* 신분증 */}
+              {/* 신분증 (한 장이면 라벨 변경) */}
               <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg h-12">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800">신분증</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    {isCombinedIdBank ? '신분증 및 통장사본' : '신분증'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {!documents.idCard.file ? (
@@ -567,9 +714,10 @@ export default function SubmitDocumentPage() {
               <button 
                 type="button" 
                 onClick={handleSubmit}
+                disabled={isSubmitting}
                 className={staffUi.buttonClass.primary}
               >
-                제출하기
+                {isSubmitting ? '제출 중...' : '제출하기'}
               </button>
             </div>
             </div>

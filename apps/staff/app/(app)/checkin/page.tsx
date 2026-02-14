@@ -71,6 +71,7 @@ export default function AttendanceCheckPage() {
   const [submitting, setSubmitting] = useState(false);
   const [site, setSite] = useState<SiteInfo | null>(null);
   const [staffName, setStaffName] = useState<string>("");
+  const [staffId, setStaffId] = useState<string>("");
   const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
   const [attendanceStatus, setAttendanceStatus] = useState<AttendanceStatus>({ hasCheckedIn: false });
@@ -146,7 +147,7 @@ export default function AttendanceCheckPage() {
 
         const { data: staffData, error: staffError } = await supabase
           .from("users_staff")
-          .select("site_id, name")
+          .select("id, site_id, name")
           .eq("kakao_id", user.id)
           .single();
 
@@ -158,7 +159,10 @@ export default function AttendanceCheckPage() {
           return;
         }
 
-        if (isMounted) setStaffName(staffData?.name ?? "");
+        if (isMounted) {
+          setStaffName(staffData?.name ?? "");
+          setStaffId(staffData.id);
+        }
 
         const today = getTodayKST();
         const [siteResult, attendanceResult] = await Promise.all([
@@ -166,7 +170,7 @@ export default function AttendanceCheckPage() {
           supabase
             .from("attendance")
             .select("created_at")
-            .eq("user_id", user.id)
+            .eq("user_id", staffData.id)
             .eq("site_id", staffData.site_id)
             .eq("work_date", today)
             .maybeSingle(),
@@ -306,7 +310,7 @@ export default function AttendanceCheckPage() {
 
       const { error } = await supabase.from("attendance").insert({
         site_id: site.id,
-        user_id: user.id,
+        user_id: staffId,
         work_date: today,
       });
 

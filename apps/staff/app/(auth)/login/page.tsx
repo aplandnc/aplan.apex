@@ -44,7 +44,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`${staffUi.layout.page} flex flex-col items-center justify-center bg-gray-50 min-h-screen p-6`}>
+    <div className={`${staffUi.layout.page} flex flex-col items-center justify-center bg-gray-50 min-h-screen min-h-[100dvh] p-6`}>
       {/* - px-6: 모바일에서 카드 안쪽의 좌우 여백 확보
          - max-w-sm: 모바일에서 카드가 너무 뚱뚱해지지 않게 너비 제한
          - shadow-md: 조금 더 부드러운 입체감 부여

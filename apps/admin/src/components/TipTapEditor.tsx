@@ -7,7 +7,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
-import { Extension, ChainedCommands } from "@tiptap/core";
+import { Extension } from "@tiptap/core";
 import { useEffect, useState, useRef } from "react";
 
 // FontSize 커맨드 타입 선언
@@ -20,16 +20,14 @@ declare module '@tiptap/core' {
   }
 }
 
-// FontSize Extension 직접 생성
+// FontSize Extension
 const FontSize = Extension.create({
   name: 'fontSize',
-
   addOptions() {
     return {
       types: ['textStyle'],
     };
   },
-
   addGlobalAttributes() {
     return [
       {
@@ -39,25 +37,20 @@ const FontSize = Extension.create({
             default: null,
             parseHTML: (element: HTMLElement) => element.style.fontSize?.replace(/['"]+/g, ''),
             renderHTML: (attributes: Record<string, string | null>) => {
-              if (!attributes.fontSize) {
-                return {};
-              }
-              return {
-                style: `font-size: ${attributes.fontSize}`,
-              };
+              if (!attributes.fontSize) return {};
+              return { style: `font-size: ${attributes.fontSize}` };
             },
           },
         },
       },
     ];
   },
-
   addCommands() {
     return {
-      setFontSize: (fontSize: string) => ({ chain }: { chain: () => ChainedCommands }) => {
+      setFontSize: (fontSize: string) => ({ chain }) => {
         return chain().setMark('textStyle', { fontSize }).run();
       },
-      unsetFontSize: () => ({ chain }: { chain: () => ChainedCommands }) => {
+      unsetFontSize: () => ({ chain }) => {
         return chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
       },
     };
@@ -73,14 +66,16 @@ interface TipTapEditorProps {
   loadingDefault?: boolean;
 }
 
-export default function TipTapEditor({ content, onChange, onSave, saving, onLoadDefault, loadingDefault }: TipTapEditorProps) {
+export default function TipTapEditor({ content, onChange, onSave, onLoadDefault, loadingDefault, saving }: TipTapEditorProps) {
   const [currentColor, setCurrentColor] = useState("#000000");
   const articleCounterRef = useRef(1);
 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        hardBreak: {},
+      }),
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
@@ -95,7 +90,8 @@ export default function TipTapEditor({ content, onChange, onSave, saving, onLoad
     },
     editorProps: {
       attributes: {
-        class: "prose max-w-none min-h-[500px] p-4 focus:outline-none",
+        class: "prose max-w-none min-h-[500px] focus:outline-none",
+        spellcheck: "false",
       },
     },
   });
@@ -123,8 +119,6 @@ export default function TipTapEditor({ content, onChange, onSave, saving, onLoad
       .focus()
       .insertContent(`<p><strong>${articleText}</strong></p>`)
       .run();
-    
-    editor.chain().focus().toggleBold().run();
   };
 
   const setFontSize = (size: string) => {
@@ -142,158 +136,70 @@ export default function TipTapEditor({ content, onChange, onSave, saving, onLoad
               <button
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 className={`w-9 h-9 flex items-center justify-center rounded-md font-bold text-base transition-all ${
-                  editor.isActive("bold")
-                    ? "bg-blue-500 text-white shadow-md"
-                    : "hover:bg-gray-100 text-gray-700"
+                  editor.isActive("bold") ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 text-gray-700"
                 }`}
                 type="button"
                 title="굵게"
-              >
-                B
-              </button>
-              <button
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={`w-9 h-9 flex items-center justify-center rounded-md italic text-base transition-all ${
-                  editor.isActive("italic")
-                    ? "bg-blue-500 text-white shadow-md"
-                    : "hover:bg-gray-100 text-gray-700"
-                }`}
-                type="button"
-                title="기울임"
-              >
-                I
-              </button>
+              >B</button>
               <button
                 onClick={() => editor.chain().focus().toggleUnderline().run()}
                 className={`w-9 h-9 flex items-center justify-center rounded-md underline text-base transition-all ${
-                  editor.isActive("underline")
-                    ? "bg-blue-500 text-white shadow-md"
-                    : "hover:bg-gray-100 text-gray-700"
+                  editor.isActive("underline") ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 text-gray-700"
                 }`}
                 type="button"
                 title="밑줄"
-              >
-                U
-              </button>
+              >U</button>
             </div>
 
             {/* 글씨 색상 */}
             <div className="flex items-center gap-1.5 px-2 py-1 bg-white rounded-lg border border-gray-200 shadow-sm">
-              <label 
-                className="w-9 h-9 rounded-lg cursor-pointer border-2 border-gray-300 overflow-hidden block"
-                title="글씨 색상"
-              >
-                <input
-                  type="color"
-                  onChange={(e) => {
-                    const color = e.target.value;
-                    setCurrentColor(color);
-                    editor.chain().focus().setColor(color).run();
-                  }}
-                  value={currentColor}
-                  className="w-full h-full cursor-pointer block"
-                  style={{ 
-                    border: "none", 
-                    padding: 0, 
-                    margin: 0,
-                    WebkitAppearance: "none",
-                    MozAppearance: "none",
-                    appearance: "none"
-                  }}
-                />
-              </label>
+              <input
+                type="color"
+                onChange={(e) => {
+                  const color = e.target.value;
+                  setCurrentColor(color);
+                  editor.chain().focus().setColor(color).run();
+                }}
+                value={currentColor}
+                className="w-8 h-8 cursor-pointer rounded border-none"
+              />
               <button
                 onClick={() => {
                   setCurrentColor("#000000");
                   editor.chain().focus().unsetColor().run();
                 }}
-                className="px-2 h-9 rounded-md text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                className="px-2 h-8 rounded text-xs bg-gray-100 hover:bg-gray-200"
                 type="button"
-                title="색상 초기화"
-              >
-                초기화
-              </button>
+              >초기화</button>
             </div>
 
             {/* 글씨 크기 */}
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-white rounded-lg border border-gray-200 shadow-sm">
-              <select
-                onChange={(e) => setFontSize(e.target.value)}
-                className="h-9 px-2 rounded-md text-xs font-semibold bg-white hover:bg-gray-50 border border-gray-300 cursor-pointer"
-                defaultValue="12px"
-              >
-                <option value="12px">12px</option>
-                <option value="14px">14px</option>
-                <option value="16px">16px</option>
-                <option value="18px">18px</option>
-                <option value="20px">20px</option>
-                <option value="22px">22px</option>
-                <option value="24px">24px</option>
-              </select>
-            </div>
+            <select
+              onChange={(e) => setFontSize(e.target.value)}
+              className="h-9 px-2 rounded-lg border border-gray-200 text-sm"
+              defaultValue="14px"
+            >
+              {["12px", "14px", "16px", "18px", "20px", "24px"].map(size => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
 
-            {/* 정렬 */}
+            {/* 정렬 및 목록 */}
             <div className="flex items-center gap-1.5 px-2 py-1 bg-white rounded-lg border border-gray-200 shadow-sm">
-              <button
-                onClick={() => editor.chain().focus().setTextAlign("left").run()}
-                className={`w-9 h-9 flex items-center justify-center rounded-md text-lg transition-all ${
-                  editor.isActive({ textAlign: "left" })
-                    ? "bg-blue-500 text-white shadow-md"
-                    : "hover:bg-gray-100 text-gray-700"
-                }`}
-                type="button"
-                title="왼쪽 정렬"
-              >
-                ←
-              </button>
-              <button
-                onClick={() => editor.chain().focus().setTextAlign("center").run()}
-                className={`w-9 h-9 flex items-center justify-center rounded-md text-lg transition-all ${
-                  editor.isActive({ textAlign: "center" })
-                    ? "bg-blue-500 text-white shadow-md"
-                    : "hover:bg-gray-100 text-gray-700"
-                }`}
-                type="button"
-                title="가운데 정렬"
-              >
-                ↔
-              </button>
-              <button
-                onClick={() => editor.chain().focus().setTextAlign("right").run()}
-                className={`w-9 h-9 flex items-center justify-center rounded-md text-lg transition-all ${
-                  editor.isActive({ textAlign: "right" })
-                    ? "bg-blue-500 text-white shadow-md"
-                    : "hover:bg-gray-100 text-gray-700"
-                }`}
-                type="button"
-                title="오른쪽 정렬"
-              >
-                →
-              </button>
-            </div>
-
-            {/* 목록 */}
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-white rounded-lg border border-gray-200 shadow-sm">
-              <button
-                onClick={insertArticleText}
-                className="px-3 h-9 flex items-center justify-center rounded-md text-sm font-semibold hover:bg-gray-100 text-gray-700 transition-all"
-                type="button"
-                title="조항 삽입"
-              >
-                【제 조】
-              </button>
+              <button onClick={() => editor.chain().focus().setTextAlign("left").run()} className="p-1.5 hover:bg-gray-100 rounded">←</button>
+              <button onClick={() => editor.chain().focus().setTextAlign("center").run()} className="p-1.5 hover:bg-gray-100 rounded">↔</button>
               <button
                 onClick={() => editor.chain().focus().toggleOrderedList().run()}
                 className={`px-3 h-9 flex items-center justify-center rounded-md text-sm font-semibold transition-all ${
-                  editor.isActive("orderedList")
-                    ? "bg-blue-500 text-white shadow-md"
-                    : "hover:bg-gray-100 text-gray-700"
+                  editor.isActive("orderedList") ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 text-gray-700"
                 }`}
                 type="button"
-                title="원문자 목록"
-              >
-                ① 목록
-              </button>
+              >① 목록</button>
+              <button
+                onClick={insertArticleText}
+                className="px-3 h-9 flex items-center justify-center rounded-md text-sm font-semibold border hover:bg-gray-50 text-gray-700"
+                type="button"
+              >【제 조】</button>
             </div>
           </div>
 
@@ -303,17 +209,17 @@ export default function TipTapEditor({ content, onChange, onSave, saving, onLoad
               <button
                 onClick={onLoadDefault}
                 disabled={loadingDefault}
-                className="rounded-lg bg-gradient-to-r from-gray-500 to-gray-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:shadow-lg hover:from-gray-600 hover:to-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg bg-gray-500 px-4 py-2 text-sm font-bold text-white hover:bg-gray-600 disabled:opacity-50"
                 type="button"
               >
-                {loadingDefault ? "불러오는 중..." : "기본템플릿 불러오기"}
+                {loadingDefault ? "로드 중..." : "기본템플릿"}
               </button>
             )}
             {onSave && (
               <button
                 onClick={onSave}
                 disabled={saving}
-                className="rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:shadow-lg hover:from-blue-600 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50"
                 type="button"
               >
                 {saving ? "저장 중..." : "저장"}
@@ -323,37 +229,36 @@ export default function TipTapEditor({ content, onChange, onSave, saving, onLoad
         </div>
       </div>
 
-      {/* 에디터 */}
+      {/* 에디터 본문 스타일 (스태프 앱과 일치시킴) */}
       <div className="bg-white">
         <style jsx global>{`
           .ProseMirror {
-            padding: 1.5rem;
+            padding: 2rem;
             min-height: 500px;
             outline: none;
-            font-size: 15px;
-            line-height: 1.0;
+            line-height: 1.7;
+            word-break: keep-all;
           }
           .ProseMirror p {
-            margin: 0.3rem 0;
+            margin-bottom: 0.6rem;
+            min-height: 1.2em;
           }
           .ProseMirror ol {
-            padding-left: 1.5rem;
-            margin: 0.3rem 0;
-            list-style: none;
+            list-style: none !important;
+            padding-left: 0.5rem !important;
             counter-reset: item;
           }
           .ProseMirror ol li {
-            margin: 0.15rem 0;
-            padding-left: 0.1rem;
-            counter-increment: item;
             position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.4rem;
+            counter-increment: item;
           }
           .ProseMirror ol li::before {
-            content: "①";
+            position: absolute;
+            left: 0;
             font-weight: 600;
             color: #1f2937;
-            position: absolute;
-            left: -1.1rem;
           }
           .ProseMirror ol li:nth-child(1)::before { content: "①"; }
           .ProseMirror ol li:nth-child(2)::before { content: "②"; }
@@ -366,28 +271,9 @@ export default function TipTapEditor({ content, onChange, onSave, saving, onLoad
           .ProseMirror ol li:nth-child(9)::before { content: "⑨"; }
           .ProseMirror ol li:nth-child(10)::before { content: "⑩"; }
           
-          /* 색상 피커 스타일 강제 적용 */
-          input[type="color"] {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 100%;
-            height: 100%;
-            border: none;
-            padding: 0;
-            margin: 0;
-            cursor: pointer;
-          }
-          input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 0;
-          }
-          input[type="color"]::-webkit-color-swatch {
-            border: none;
-            border-radius: 4px;
-          }
-          input[type="color"]::-moz-color-swatch {
-            border: none;
-            border-radius: 4px;
+          .ProseMirror ul {
+            list-style: disc;
+            padding-left: 1.5rem;
           }
         `}</style>
         <EditorContent editor={editor} />
