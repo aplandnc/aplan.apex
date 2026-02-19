@@ -187,8 +187,8 @@ export default function CounterPage() {
   if (loading) return <div className="p-6">로딩중...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto space-y-6" style={{ maxWidth: '1400px' }}>
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50 p-6">
+      <div className="flex-1 min-h-0 overflow-y-auto mx-auto space-y-6" style={{ maxWidth: '1400px' }}>
         <div className={adminUi.card}>
           <h1 className="text-3xl font-bold text-center py-2">방문자 집계</h1>
         </div>

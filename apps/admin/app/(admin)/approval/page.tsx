@@ -125,59 +125,30 @@ export default function ApprovalPage() {
 
   // 반려 처리 (status + rejected_reason)
   const handleReject = async (ids: string[], reason: string) => {
-    console.log("[DEBUG] handleReject 호출됨:", { ids, reason });
-
-    if (ids.length === 0) {
-      console.log("[DEBUG] ids가 비어있음");
-      return;
-    }
+    if (ids.length === 0) return;
     if (!reason.trim()) {
-      console.log("[DEBUG] 반려사유 없음");
       alert("반려 사유를 입력하세요.");
       return;
     }
 
     setProcessing(true);
-    console.log("[DEBUG] DB 업데이트 시작");
 
     try {
       const results = await Promise.all(
         ids.map(async (id) => {
-          console.log("[DEBUG] 업데이트 시도:", id);
-          const { data, error } = await supabase
+          const { error } = await supabase
             .from("users_staff")
             .update({
               status: "rejected",
               rejected_reason: reason.trim(),
             })
-            .eq("id", id)
-            .select("id, status, rejected_reason");
+            .eq("id", id);
 
-          console.log("[DEBUG] 업데이트 직후 반환값:", { id, data, error });
           if (error) throw error;
-
-          // 업데이트 후 다시 조회해서 실제로 반영됐는지 확인
-          const { data: verifyRow, error: verifyErr } = await supabase
-            .from("users_staff")
-            .select("id, status, rejected_reason")
-            .eq("id", id)
-            .single();
-
-          console.log("[DEBUG] 업데이트 후 재조회:", { id, verifyRow, verifyErr });
-
-          if (verifyRow && verifyRow.status !== "rejected") {
-            console.error("[ERROR] 반려 업데이트가 DB에 반영되지 않음!", {
-              expected: "rejected",
-              actual: verifyRow.status,
-            });
-            throw new Error(`반려가 DB에 반영되지 않았습니다. 현재 상태: ${verifyRow.status}`);
-          }
-
           return id;
         })
       );
 
-      console.log("[DEBUG] 반려 완료:", results);
       setToast(`반려 완료 (${results.length}건)`);
       setSelectedIds(new Set());
       await fetchPending();
@@ -258,7 +229,6 @@ export default function ApprovalPage() {
       const list = (data ?? []) as StaffRow[];
       setRows(list);
       await fetchSiteNames(list.map((r) => r.site_id ?? ""));
-      console.log("[approval] pending staff (status only):", list);
     } catch (e: any) {
       console.error("[approval] status 기반 pending 조회 실패:", e?.message ?? e);
       setRows([]);

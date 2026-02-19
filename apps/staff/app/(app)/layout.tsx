@@ -16,7 +16,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const canDocs = ["기획", "상담사", "TM", "영업사원"].includes(staffType);
 
   return (
-    <div className="flex flex-col min-h-screen min-h-[100dvh] bg-gray-50">
+    <div className="flex flex-col h-screen h-[100dvh] overflow-hidden bg-gray-50">
       {/* 헤더 + 사이드바 (클라이언트 컴포넌트) */}
       <Sidebar
         staffName={staffName}
@@ -29,7 +29,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       />
 
       {/* 메인 콘텐츠 */}
-      <main className="flex-1 pb-4 overflow-y-auto">
+      <main className="flex-1 min-h-0 pb-4 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
           {children}
         </div>
