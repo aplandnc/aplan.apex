@@ -28,8 +28,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         canDocs={canDocs}
       />
 
-      {/* 메인 콘텐츠 - 헤더 높이(h-16 = 64px)만큼 pt 추가 */}
-      <main className="flex-1 pt-16 pb-4 overflow-y-auto">
+      {/* 메인 콘텐츠 */}
+      <main className="flex-1 pb-4 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
           {children}
         </div>

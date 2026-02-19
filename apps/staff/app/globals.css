@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PC에서 모바일 화면처럼 보이게 (768px 이상일 때만) */
+@media (min-width: 768px) {
+  html {
+    background: #e5e7eb;
+  }
+
+  body {
+    max-width: 430px;
+    margin: 0 auto;
+    background: #fff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+}

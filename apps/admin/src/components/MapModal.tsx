@@ -8,6 +8,7 @@ declare global {
         Map: any;
         LatLng: any;
         Marker: any;
+        Circle: any;
         Event: any;
         Service: {
           geocode: any;
@@ -24,6 +25,7 @@ type MapModalProps = {
   onSelectCoords: (lat: number, lng: number) => void;
   initialLat?: number;
   initialLng?: number;
+  radius?: number; // 반경(m)
 };
 
 export default function MapModal({
@@ -32,14 +34,50 @@ export default function MapModal({
   onSelectCoords,
   initialLat = 37.5665,
   initialLng = 126.978,
+  radius = 0,
 }: MapModalProps) {
   const { loaded, error } = useNaverMaps();
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const circleRef = useRef<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLat, setSelectedLat] = useState<number | null>(null);
   const [selectedLng, setSelectedLng] = useState<number | null>(null);
   const [searching, setSearching] = useState(false);
+
+  // 기본 좌표가 아닌 실제 좌표가 있는지 판별
+  const hasInitialCoords =
+    initialLat !== 37.5665 || initialLng !== 126.978;
+
+  function placeMarkerAndCircle(map: any, lat: number, lng: number) {
+    const nmaps = (window as any).naver.maps;
+    const pos = new nmaps.LatLng(lat, lng);
+
+    // 기존 마커 제거
+    if (markerRef.current) markerRef.current.setMap(null);
+    // 기존 원 제거
+    if (circleRef.current) circleRef.current.setMap(null);
+
+    // 마커 생성
+    markerRef.current = new nmaps.Marker({ position: pos, map });
+
+    // 반경 원 생성
+    if (radius > 0) {
+      circleRef.current = new nmaps.Circle({
+        map,
+        center: pos,
+        radius,
+        fillColor: "#3B82F6",
+        fillOpacity: 0.15,
+        strokeColor: "#2563EB",
+        strokeOpacity: 0.6,
+        strokeWeight: 2,
+      });
+    }
+
+    setSelectedLat(lat);
+    setSelectedLng(lng);
+  }
 
   useEffect(() => {
     if (!isOpen || !loaded || !window.naver || !window.naver.maps) return;
@@ -48,46 +86,37 @@ export default function MapModal({
       const mapDiv = document.getElementById("naverMap");
       if (!mapDiv) return;
 
-      const map = new (window as any).naver.maps.Map(mapDiv, {
-        center: new (window as any).naver.maps.LatLng(initialLat, initialLng),
+      const nmaps = (window as any).naver.maps;
+
+      const map = new nmaps.Map(mapDiv, {
+        center: new nmaps.LatLng(initialLat, initialLng),
         zoom: 17,
       });
 
       mapRef.current = map;
 
+      // 기존 좌표가 있으면 초기 마커 + 반경 원 표시
+      if (hasInitialCoords) {
+        placeMarkerAndCircle(map, initialLat, initialLng);
+      }
+
       // 지도 클릭 이벤트
-      (window as any).naver.maps.Event.addListener(map, "click", (e: any) => {
+      nmaps.Event.addListener(map, "click", (e: any) => {
         const lat = e.coord.lat();
         const lng = e.coord.lng();
-
-        setSelectedLat(lat);
-        setSelectedLng(lng);
-
-        // 기존 마커 제거
-        if (markerRef.current) {
-          markerRef.current.setMap(null);
-        }
-
-        // 새 마커 생성
-        const marker = new (window as any).naver.maps.Marker({
-          position: new (window as any).naver.maps.LatLng(lat, lng),
-          map: map,
-        });
-
-        markerRef.current = marker;
+        placeMarkerAndCircle(map, lat, lng);
       });
     };
 
-    // 지도 초기화는 약간의 딜레이 후 실행 (DOM 준비 대기)
     const timer = setTimeout(initMap, 100);
 
     return () => {
       clearTimeout(timer);
-      if (markerRef.current) {
-        markerRef.current.setMap(null);
-      }
+      if (markerRef.current) markerRef.current.setMap(null);
+      if (circleRef.current) circleRef.current.setMap(null);
     };
-  }, [isOpen, loaded, initialLat, initialLng]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, loaded, initialLat, initialLng, radius]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim() || !window.naver || !mapRef.current) return;
@@ -114,22 +143,10 @@ export default function MapModal({
           const lat = parseFloat(result.y);
           const lng = parseFloat(result.x);
 
-          // 지도 이동
-          mapRef.current.setCenter(new (window as any).naver.maps.LatLng(lat, lng));
-
-          // 마커 생성
-          if (markerRef.current) {
-            markerRef.current.setMap(null);
-          }
-
-          const marker = new (window as any).naver.maps.Marker({
-            position: new (window as any).naver.maps.LatLng(lat, lng),
-            map: mapRef.current,
-          });
-
-          markerRef.current = marker;
-          setSelectedLat(lat);
-          setSelectedLng(lng);
+          mapRef.current.setCenter(
+            new (window as any).naver.maps.LatLng(lat, lng)
+          );
+          placeMarkerAndCircle(mapRef.current, lat, lng);
         }
       );
     } catch (error) {
@@ -160,7 +177,9 @@ export default function MapModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
         <div className="rounded-xl bg-white p-6 shadow-2xl">
           <p className="text-red-600 font-bold">지도 로드 실패</p>
-          <p className="mt-2 text-sm text-gray-600">네이버 지도 API를 불러올 수 없습니다.</p>
+          <p className="mt-2 text-sm text-gray-600">
+            네이버 지도 API를 불러올 수 없습니다.
+          </p>
           <button
             onClick={onClose}
             className="mt-4 rounded-lg bg-gray-500 px-4 py-2 text-white"
@@ -193,7 +212,14 @@ export default function MapModal({
       >
         {/* 헤더 */}
         <div className="border-b border-gray-200 bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
-          <div className="text-lg font-bold text-white">좌표 설정</div>
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-bold text-white">좌표 설정</div>
+            {radius > 0 && (
+              <div className="text-sm text-blue-100">
+                체크인 반경: {radius}m
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 주소 검색 */}

@@ -21,6 +21,9 @@ type Site = {
   checkin_start_time: string | null;
   checkin_end_time: string | null;
   visit_type: boolean | null;
+  checkin_type: boolean | null;
+  infodesk_id: string | null;
+  infodesk_pw: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -34,15 +37,19 @@ type UnitRow = {
   note: string;
 };
 
+type CheckinType = "GPS" | "GPS+QR";
+
 type SiteForm = {
-  code: string;
   name: string;
   status: string;
+  announcement_date: string;
   product_type: string;
   address1: string;
   address2: string;
-  announcement_date: string;
   visit_kind: VisitKind; // ✅ UI 전용
+  infodesk_id: string;
+  infodesk_pw: string;
+  checkin_type: CheckinType;
   lat: string;
   lng: string;
   checkin_radius_m: number;
@@ -51,14 +58,16 @@ type SiteForm = {
 };
 
 const emptyForm: SiteForm = {
-  code: "",
   name: "",
   status: "활성",
+  announcement_date: "",
   product_type: "",
   address1: "",
   address2: "",
-  announcement_date: "",
   visit_kind: "데스크",
+  infodesk_id: "",
+  infodesk_pw: "",
+  checkin_type: "GPS",
   lat: "",
   lng: "",
   checkin_radius_m: 50,
@@ -101,6 +110,15 @@ export default function SitesPage() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<SiteForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // 토스트 자동 숨김
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // ✅ 타입 구성(표) UI 상태
   const newUnitRow = (): UnitRow => ({
@@ -136,7 +154,6 @@ export default function SitesPage() {
   // 반경 슬라이더는 "드래그 중 리렌더 0"
   const radiusSliderRef = useRef<HTMLInputElement | null>(null);
   const radiusNumberRef = useRef<HTMLInputElement | null>(null);
-  const radiusValueRef = useRef<HTMLSpanElement | null>(null);
 
   const clampRadius = (n: number) => Math.max(1, Math.min(100, n));
 
@@ -146,16 +163,13 @@ export default function SitesPage() {
     const v = clampRadius(form.checkin_radius_m || 50);
     if (radiusSliderRef.current) radiusSliderRef.current.value = String(v);
     if (radiusNumberRef.current) radiusNumberRef.current.value = String(v);
-    if (radiusValueRef.current) radiusValueRef.current.textContent = `${v}m`;
   }, [open, editingId, form.checkin_radius_m]);
 
   function handleRadiusInput(raw: string) {
     const parsed = parseInt(raw, 10);
     if (!Number.isFinite(parsed)) return;
     const v = clampRadius(parsed);
-    // 여기서는 state 업데이트 금지(리렌더 0)
     if (radiusNumberRef.current) radiusNumberRef.current.value = String(v);
-    if (radiusValueRef.current) radiusValueRef.current.textContent = `${v}m`;
   }
 
   function commitRadiusFromValue(raw: string) {
@@ -167,7 +181,7 @@ export default function SitesPage() {
   const columns = useMemo(
     () => [
       { key: "name", label: "현장명" },
-      { key: "product_type", label: "상품구분" },
+      { key: "product_type", label: "상품 구분" },
       { key: "address1", label: "위치" },
       { key: "status", label: "상태" },
       { key: "actions", label: "관리" },
@@ -332,34 +346,40 @@ export default function SitesPage() {
     setSaving(true);
     setError(null);
 
-    const code = (form?.code ?? "").trim();
     const name = (form?.name ?? "").trim();
     const status = (form?.status ?? "").trim();
 
-    if (!code || !name || !status) {
-      setError("코드/현장명/상태는 필수야.");
+    if (!name || !status) {
+      setError("현장명/상태는 필수입니다.");
       setSaving(false);
       return;
     }
 
-    const payload = {
-      code,
+    const infodeskId = (form.infodesk_id ?? "").trim() || null;
+    const infodeskPw = (form.infodesk_pw ?? "").trim() || null;
+
+    const payload: Record<string, any> = {
+      code: name,
       name,
       status,
       product_type: (form?.product_type ?? "").trim() || null,
       address1: (form?.address1 ?? "").trim() || null,
       address2: (form?.address2 ?? "").trim() || null,
       announcement_date: form?.announcement_date || null,
-
-      // ✅ 방문구분: 데스크=false(0), 조직인포=true(1)
       visit_type: form.visit_kind === "조직인포",
-
+      checkin_type: form.checkin_type === "GPS+QR",
       lat: toNumberOrNull(form?.lat),
       lng: toNumberOrNull(form?.lng),
       checkin_radius_m: form?.checkin_radius_m ?? 50,
       checkin_start_time: form?.checkin_start_time ? `${form.checkin_start_time}:00` : null,
       checkin_end_time: form?.checkin_end_time ? `${form.checkin_end_time}:00` : null,
+      infodesk_id: infodeskId,
     };
+
+    // 비밀번호는 입력했을 때만 업데이트
+    if (infodeskPw) {
+      payload.infodesk_pw = infodeskPw;
+    }
 
     let siteId = editingId;
 
@@ -414,11 +434,13 @@ export default function SitesPage() {
       }
     }
 
+    const isEdit = !!editingId;
     setOpen(false);
     setSaving(false);
     setForm(emptyForm);
     setEditingId(null);
     await loadSites();
+    setToast(isEdit ? "현장이 수정되었습니다" : "현장이 추가되었습니다");
   }
 
   function openCreateModal() {
@@ -435,14 +457,16 @@ export default function SitesPage() {
     setError(null);
     setUnitRows([newUnitRow()]);
     const formData: SiteForm = {
-      code: site.code || "",
       name: site.name || "",
       status: site.status || "활성",
+      announcement_date: site.announcement_date || "",
       product_type: site.product_type || "",
       address1: site.address1 || "",
       address2: site.address2 || "",
-      announcement_date: site.announcement_date || "",
       visit_kind: site.visit_type ? "조직인포" : "데스크",
+      infodesk_id: site.infodesk_id || "",
+      infodesk_pw: "",
+      checkin_type: site.checkin_type ? "GPS+QR" : "GPS",
       lat: site.lat?.toString() || "",
       lng: site.lng?.toString() || "",
       checkin_radius_m: site.checkin_radius_m || 50,
@@ -625,21 +649,21 @@ export default function SitesPage() {
 
             <div className="max-h-[calc(100vh-200px)] overflow-y-auto p-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Field label="코드" required>
-                  <input
-                    value={form.code}
-                    onChange={(e) => setField("code", e.target.value)}
-                    className={adminUi.inputClass()}
-                    placeholder="현장 코드 입력"
-                  />
-                </Field>
-
                 <Field label="현장명" required>
                   <input
                     value={form.name}
                     onChange={(e) => setField("name", e.target.value)}
                     className={adminUi.inputClass()}
                     placeholder="현장명 입력"
+                  />
+                </Field>
+
+                <Field label="모집공고일">
+                  <input
+                    type="date"
+                    value={form.announcement_date}
+                    onChange={(e) => setField("announcement_date", e.target.value)}
+                    className={adminUi.inputClass()}
                   />
                 </Field>
 
@@ -657,7 +681,7 @@ export default function SitesPage() {
                   </select>
                 </Field>
 
-                <Field label="상품구분">
+                <Field label="상품 구분">
                   <select
                     value={form.product_type}
                     onChange={(e) => setField("product_type", e.target.value)}
@@ -708,10 +732,10 @@ export default function SitesPage() {
 
                 <Divider />
 
-                {/* ✅ 방문구분(데스크/조직인포) + 모집공고일: 같은 높이(py-2.5) */}
+                {/* ✅ 방문구분(데스크/조직인포) + 인포데스크 로그인 */}
                 <div className="col-span-full">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <Field label="방문구분">
+                    <Field label="방문 방식 구분">
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -743,13 +767,26 @@ export default function SitesPage() {
                     </Field>
 
                     <div className="border-l border-gray-300 pl-4">
-                      <Field label="모집공고일">
-                        <input
-                          type="date"
-                          value={form.announcement_date}
-                          onChange={(e) => setField("announcement_date", e.target.value)}
-                          className={adminUi.inputClass()}
-                        />
+                      <Field label="인포데스크 로그인 설정">
+                        <div className="flex gap-2">
+                          <input
+                            value={form.infodesk_id}
+                            onChange={(e) => setField("infodesk_id", e.target.value)}
+                            className={adminUi.inputClass()}
+                            placeholder="ID"
+                            autoComplete="new-password"
+                            name="infodesk_login_id"
+                          />
+                          <input
+                            type="password"
+                            value={form.infodesk_pw}
+                            onChange={(e) => setField("infodesk_pw", e.target.value)}
+                            className={adminUi.inputClass()}
+                            placeholder={editingId ? "변경 시 입력" : "PW"}
+                            autoComplete="new-password"
+                            name="infodesk_login_pw"
+                          />
+                        </div>
                       </Field>
                     </div>
                   </div>
@@ -757,44 +794,83 @@ export default function SitesPage() {
 
                 <Divider />
 
-                <Field label="위도 (Latitude)">
-                  <input
-                    value={form.lat}
-                    onChange={(e) => setField("lat", e.target.value)}
-                    className={adminUi.inputClass()}
-                    placeholder="37.5665"
-                  />
-                </Field>
+                {/* ✅ 출근방식 + 위도 + 경도 + 좌표설정: 한 줄 5등분 */}
+                <div className="col-span-full">
+                  <div className="grid grid-cols-[1fr_1fr_auto_1fr_1fr_1fr] items-end gap-3">
+                    <Field label="출근 방식 설정">
+                      <button
+                        type="button"
+                        onClick={() => setField("checkin_type", "GPS")}
+                        className={[
+                          "w-full",
+                          adminUi.buttonClass.secondary,
+                          form.checkin_type === "GPS"
+                            ? "!bg-blue-600 !text-white !border-blue-600 ring-2 ring-blue-200"
+                            : "",
+                        ].join(" ")}
+                      >
+                        GPS
+                      </button>
+                    </Field>
 
-                <Field label="경도 (Longitude)">
-                  <input
-                    value={form.lng}
-                    onChange={(e) => setField("lng", e.target.value)}
-                    className={adminUi.inputClass()}
-                    placeholder="126.9780"
-                  />
-                </Field>
+                    <Field label="&nbsp;">
+                      <button
+                        type="button"
+                        onClick={() => setField("checkin_type", "GPS+QR")}
+                        className={[
+                          "w-full",
+                          adminUi.buttonClass.secondary,
+                          form.checkin_type === "GPS+QR"
+                            ? "!bg-blue-600 !text-white !border-blue-600 ring-2 ring-blue-200"
+                            : "",
+                        ].join(" ")}
+                      >
+                        GPS+QR
+                      </button>
+                    </Field>
 
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={() => setMapModalOpen(true)}
-                    className="w-full rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:shadow-lg hover:from-green-600 hover:to-green-700 transition-all"
-                  >
-                    지도에서 좌표 선택
-                  </button>
+                    <div className="self-stretch flex items-center">
+                      <div className="h-full border-l border-gray-300" />
+                    </div>
+
+                    <Field label="위도">
+                      <input
+                        value={form.lat}
+                        onChange={(e) => setField("lat", e.target.value)}
+                        className={adminUi.inputClass()}
+                        placeholder="37.5665"
+                      />
+                    </Field>
+
+                    <Field label="경도">
+                      <input
+                        value={form.lng}
+                        onChange={(e) => setField("lng", e.target.value)}
+                        className={adminUi.inputClass()}
+                        placeholder="126.9780"
+                      />
+                    </Field>
+
+                    <Field label="&nbsp;">
+                      <button
+                        type="button"
+                        onClick={() => setMapModalOpen(true)}
+                        className="w-full rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:shadow-lg hover:from-green-600 hover:to-green-700 transition-all"
+                      >
+                        좌표 설정
+                      </button>
+                    </Field>
+                  </div>
                 </div>
 
                 <div className="col-span-full">
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                      <Field label="체크인 반경">
+                      <Field label="츌근체크 가능 반경 설정">
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-gray-500">1m</span>
-                            <span ref={radiusValueRef} className="text-xs font-semibold text-gray-700">
-                              {form.checkin_radius_m || 50}m
-                            </span>
+                            <span className="text-xs font-semibold text-gray-400">50m</span>
                             <span className="text-xs font-semibold text-gray-500">100m</span>
                           </div>
 
@@ -811,22 +887,27 @@ export default function SitesPage() {
                             className="w-full h-2 bg-gradient-to-r from-blue-400 to-blue-600 rounded-lg appearance-none cursor-pointer"
                           />
 
-                          <input
-                            ref={radiusNumberRef}
-                            type="number"
-                            min="1"
-                            max="100"
-                            defaultValue={form.checkin_radius_m || 50}
-                            onChange={(e) => commitRadiusFromValue(e.target.value)}
-                            className={adminUi.inputClass()}
-                          />
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">현재 설정된 출근 가능 반경 :</span>
+                            <input
+                              ref={radiusNumberRef}
+                              type="number"
+                              min="1"
+                              max="100"
+                              defaultValue={form.checkin_radius_m || 50}
+                              onChange={(e) => commitRadiusFromValue(e.target.value)}
+                              className={`${adminUi.inputClass()} w-20 text-center`}
+                            />
+                            <span className="text-xs font-semibold text-gray-600">m</span>
+                          </div>
                         </div>
+                        <p className="mt-2 text-xs text-gray-400">슬라이더를 조절하거나 거리를 입력하여 출근 반경을 설정하세요</p>
                       </Field>
                     </div>
 
                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                       <div className="space-y-3">
-                        <Field label="체크인 시작시간">
+                        <Field label="출근체크 시작 시간">
                           <input
                             type="time"
                             value={form.checkin_start_time}
@@ -834,7 +915,7 @@ export default function SitesPage() {
                             className={adminUi.inputClass()}
                           />
                         </Field>
-                        <Field label="체크인 종료시간">
+                        <Field label="출근체크 종료 시간">
                           <input
                             type="time"
                             value={form.checkin_end_time}
@@ -993,7 +1074,15 @@ export default function SitesPage() {
         }}
         initialLat={form.lat ? parseFloat(form.lat) : 37.5665}
         initialLng={form.lng ? parseFloat(form.lng) : 126.978}
+        radius={form.checkin_radius_m || 50}
       />
+
+      {/* 토스트 메시지 */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in">
+          {toast}
+        </div>
+      )}
     </AdminPageShell>
   );
 }
