@@ -158,26 +158,30 @@ export default function SubmitDocumentPage() {
     });
   };
 
-  // ─── 파일명 규칙: {현장명}_{본부}_{팀}_{이름}_{서류종류}.{ext} ───
+  // ─── 파일명 규칙: {현장명}_{N본부}_{N팀}_{영업명/이름_직급}_{서류종류}.{ext} ───
   const DOC_TYPE_LABEL: Record<string, string> = {
     registration: '등본',
     idCard: '신분증',
-    idCardCombined: '신분증 및 통장사본',
+    idCardCombined: '신분증및통장사본',
     bankbook: '통장사본',
   };
+
+  const sanitize = (str: string) => str.replace(/\s+/g, '-');
 
   const buildFileName = (docType: string, ext: string) => {
     const parts: string[] = [];
 
-    parts.push(staffInfo?.site_name || '미지정');
-    if (staffInfo?.hq) parts.push(staffInfo.hq);
-    if (staffInfo?.team) parts.push(staffInfo.team);
-    parts.push(staffInfo?.sales_name || staffInfo?.name || '미입력');
+    parts.push(sanitize(staffInfo?.site_name || '미지정'));
+    if (staffInfo?.hq) parts.push(sanitize(`${staffInfo.hq}본부`));
+    if (staffInfo?.team) parts.push(sanitize(`${staffInfo.team}팀`));
+
+    const personName = staffInfo?.sales_name || staffInfo?.name || '미입력';
+    const rank = staffInfo?.rank || '';
+    parts.push(sanitize(rank ? `${personName}_${rank}` : personName));
+
     parts.push(DOC_TYPE_LABEL[docType] || docType);
 
-    // 타임스탬프 추가 (중복 파일명 방지)
-    const timestamp = Date.now();
-    return `${parts.join('_')}_${timestamp}.${ext}`;
+    return `${parts.join('_')}.${ext}`;
   };
 
   // ─── 포맷 함수들 ───
@@ -271,7 +275,7 @@ export default function SubmitDocumentPage() {
 
     try {
       const supabase = supabaseAppClient();
-      const siteName = (staffInfo.site_name || '미지정').replace(/\s+/g, '_');
+      const siteName = sanitize(staffInfo.site_name || '미지정');
       const uploadedPaths: Record<string, string> = {};
 
       // ── 파일 업로드 ──
@@ -292,7 +296,7 @@ export default function SubmitDocumentPage() {
         uploadedPaths.registration = storagePath;
       }
 
-      // 2) 신분증 (한 장 사진이면 파일명을 "신분증 및 통장사본"으로)
+      // 2) 신분증 (한 장 사진이면 파일명을 "신분증및통장사본"으로)
       if (documents.idCard.file) {
         const docTypeKey = isCombinedIdBank ? 'idCardCombined' : 'idCard';
         const ext = documents.idCard.file.type === 'application/pdf' ? 'pdf' : 'jpg';
