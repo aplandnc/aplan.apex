@@ -27,6 +27,21 @@ interface Bank {
   name: string;
 }
 
+interface DaumPostcodeData {
+  zonecode: string;
+  address: string;
+}
+
+declare global {
+  interface Window {
+    daum: {
+      Postcode: new (options: {
+        oncomplete: (data: DaumPostcodeData) => void;
+      }) => { open: () => void };
+    };
+  }
+}
+
 export default function SubmitDocumentPage() {
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -160,7 +175,9 @@ export default function SubmitDocumentPage() {
     parts.push(staffInfo?.sales_name || staffInfo?.name || '미입력');
     parts.push(DOC_TYPE_LABEL[docType] || docType);
 
-    return `${parts.join('_')}.${ext}`;
+    // 타임스탬프 추가 (중복 파일명 방지)
+    const timestamp = Date.now();
+    return `${parts.join('_')}_${timestamp}.${ext}`;
   };
 
   // ─── 포맷 함수들 ───
@@ -178,8 +195,8 @@ export default function SubmitDocumentPage() {
   };
 
   const handleAddressSearch = () => {
-    new (window as any).daum.Postcode({
-      oncomplete: function(data: any) {
+    new window.daum.Postcode({
+      oncomplete: (data: DaumPostcodeData) => {
         setFormData(prev => ({
           ...prev,
           zipCode: data.zonecode,
@@ -254,7 +271,7 @@ export default function SubmitDocumentPage() {
 
     try {
       const supabase = supabaseAppClient();
-      const siteName = staffInfo.site_name || '미지정';
+      const siteName = (staffInfo.site_name || '미지정').replace(/\s+/g, '_');
       const uploadedPaths: Record<string, string> = {};
 
       // ── 파일 업로드 ──
@@ -344,8 +361,9 @@ export default function SubmitDocumentPage() {
       alert('서류가 제출되었습니다.');
       // TODO: 완료 페이지 이동
 
-    } catch (err: any) {
-      alert(err.message || '제출 중 오류가 발생했습니다.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '제출 중 오류가 발생했습니다.';
+      alert(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -359,7 +377,7 @@ export default function SubmitDocumentPage() {
       />
       <div className="bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
       <div className={staffUi.layout.main}>
-        <div className="space-y-3">
+        <div className="max-w-md mx-auto space-y-3">
           {/* 등록현장/등록자 정보 */}
           <div className="bg-white rounded-xl p-4">
             {staffInfo ? (

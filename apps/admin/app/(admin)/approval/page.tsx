@@ -115,9 +115,10 @@ export default function ApprovalPage() {
       setToast(`승인 완료 (${results.length}건)`);
       setSelectedIds(new Set());
       await fetchPending();
-    } catch (e: any) {
-      console.error("[approval] 승인 실패:", e?.message ?? e);
-      alert(e?.message ?? "승인 실패");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "승인 실패";
+      console.error("[approval] 승인 실패:", message);
+      alert(message);
     } finally {
       setProcessing(false);
     }
@@ -156,9 +157,10 @@ export default function ApprovalPage() {
       setRejectModalOpen(false);
       setRejectReason("");
       setCurrentTarget(null);
-    } catch (e: any) {
-      console.error("[approval] 반려 실패:", e?.message ?? e);
-      alert(e?.message ?? "반려 실패");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "반려 실패";
+      console.error("[approval] 반려 실패:", message);
+      alert(message);
     } finally {
       setProcessing(false);
     }
@@ -199,7 +201,7 @@ export default function ApprovalPage() {
       }
 
       const map: SiteNameMap = {};
-      (data ?? []).forEach((s: any) => {
+      (data ?? []).forEach((s) => {
         if (s?.id) map[String(s.id)] = String(s?.name ?? "-");
       });
       setSiteNameById(map);
@@ -229,11 +231,12 @@ export default function ApprovalPage() {
       const list = (data ?? []) as StaffRow[];
       setRows(list);
       await fetchSiteNames(list.map((r) => r.site_id ?? ""));
-    } catch (e: any) {
-      console.error("[approval] status 기반 pending 조회 실패:", e?.message ?? e);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "승인대기 목록을 불러오지 못했습니다.";
+      console.error("[approval] status 기반 pending 조회 실패:", message);
       setRows([]);
       setSiteNameById({});
-      setError(e?.message ?? "승인대기 목록을 불러오지 못했습니다.");
+      setError(message);
     } finally {
       setLoading(false);
     }

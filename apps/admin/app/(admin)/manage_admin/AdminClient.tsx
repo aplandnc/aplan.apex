@@ -121,8 +121,8 @@ export default function AdminClient() {
 
       const json = (await res.json()) as { data: AdminRow[] };
       setRows(json.data ?? []);
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Failed to load");
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
     }
@@ -144,9 +144,9 @@ export default function AdminClient() {
 
       const json = (await res.json()) as { data: SiteRow[] };
       setSites(json.data ?? []);
-    } catch (e: any) {
+    } catch (e) {
       setSites([]);
-      setSitesError(e?.message ?? "현장 목록을 불러오지 못했습니다.");
+      setSitesError(e instanceof Error ? e.message : "현장 목록을 불러오지 못했습니다.");
     }
   }
 
@@ -226,8 +226,8 @@ export default function AdminClient() {
 
       setCreateOpen(false);
       await loadAdmins();
-    } catch (e: any) {
-      setCreateError(e?.message ?? "생성 실패");
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : "생성 실패");
     } finally {
       setCreateSubmitting(false);
     }
@@ -304,8 +304,8 @@ export default function AdminClient() {
 
       setEditOpen(false);
       await loadAdmins();
-    } catch (e: any) {
-      setEditError(e?.message ?? "수정 실패");
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : "수정 실패");
     } finally {
       setEditSubmitting(false);
     }
@@ -330,8 +330,8 @@ export default function AdminClient() {
       }
 
       await loadAdmins();
-    } catch (e: any) {
-      window.alert(e?.message ?? "삭제 실패");
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "삭제 실패");
     }
   }
 

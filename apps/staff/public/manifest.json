@@ -1,8 +1,10 @@
 {
+  "id": "/",
   "name": "APLAN 업무시스템",
   "short_name": "APLAN",
   "description": "APLAN 업무시스템 - 출퇴근 및 업무 관리",
   "start_url": "/checkin",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1f2937",
@@ -11,12 +13,14 @@
     {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512x512.png",
@@ -24,5 +28,6 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "categories": ["business", "productivity"]
 }

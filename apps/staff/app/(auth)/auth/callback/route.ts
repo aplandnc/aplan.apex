@@ -16,27 +16,23 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login", url.origin));
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const response = NextResponse.redirect(new URL("/staff", url.origin));
 
-  // 쿠키 옵션 타입 정의
-  type CookieOptions = {
-    path?: string;
-    maxAge?: number;
-    domain?: string;
-    secure?: boolean;
-    sameSite?: "lax" | "strict" | "none";
-  };
-
-  // 2. 새로운 슈퍼베이스 클라이언트 생성
+  // 2. 새로운 슈퍼베이스 클라이언트 생성 (SSR 0.8.0 API)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) { return cookieStore.get(name)?.value; },
-        set(name: string, value: string, options: CookieOptions) { response.cookies.set({ name, value, ...options }); },
-        remove(name: string, options: CookieOptions) { response.cookies.set({ name, value: "", ...options }); },
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+        },
       },
     }
   );

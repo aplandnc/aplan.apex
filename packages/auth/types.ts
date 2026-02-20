@@ -14,6 +14,7 @@ export interface User {
   hq?: string;
   team?: string;
   car_model?: string;
+  car_color?: string;
   car_number?: string;
   sales_name?: string;
   approved: boolean;
@@ -29,6 +30,18 @@ export interface RegisterFormData {
   hq?: string;
   team?: string;
   car_model?: string;
+  car_color?: string;
   car_number?: string;
   sales_name?: string;
+}
+
+export interface Site {
+  id: string;
+  name: string;
+}
+
+export interface KakaoUserMetadata {
+  name?: string;
+  email?: string;
+  picture?: string;
 }

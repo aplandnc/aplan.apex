@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAppClient } from '@apex/config';
-import { type StaffType, type RegisterFormData } from '@apex/auth';
+import { type StaffType, type RegisterFormData, type Site, type KakaoUserMetadata } from '@apex/auth';
 import { staffUi } from '@apex/ui/styles/staff';
 
 const STAFF_TYPES: StaffType[] = ['기획', '상담사', 'TM', '큐레이터', '아르바이트', '홍보단', '영업사원', '기타'];
@@ -46,9 +46,9 @@ export default function RegisterPage() {
     car_model: '',
     car_color: '',
     car_number: ''
-  } as RegisterFormData);
+  });
 
-  const [sites, setSites] = useState<any[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [privacyAgree, setPrivacyAgree] = useState(false);
@@ -78,7 +78,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!useSalesName) {
-      setForm(prev => ({ ...prev, sales_name: '' } as any));
+      setForm(prev => ({ ...prev, sales_name: '' }));
     }
   }, [useSalesName]);
 
@@ -91,7 +91,7 @@ export default function RegisterPage() {
   const loadKakaoName = async () => {
     const { data } = await supabase.auth.getUser();
     const user = data?.user;
-    const name = (user?.user_metadata as any)?.name;
+    const name = (user?.user_metadata as KakaoUserMetadata)?.name;
     if (name) setForm(prev => ({ ...prev, name: name.replace(/\s/g, '') }));
   };
 
@@ -141,18 +141,18 @@ export default function RegisterPage() {
           setUseSalesName(hasSalesName);
 
           setForm(prev => ({
-            ...(prev as any),
+            ...prev,
             site_id: String(typedRow.site_id ?? prev.site_id ?? ''),
-            staff_type: (typedRow.staff_type as any) ?? (prev.staff_type as any),
+            staff_type: (typedRow.staff_type as StaffType) ?? prev.staff_type,
             name: String(typedRow.name ?? prev.name ?? '').replace(/\s/g, ''),
             phone: String(typedRow.phone ?? prev.phone ?? ''),
-            rank: (typedRow.rank as any) ?? (prev as any).rank ?? '',
-            hq: (typedRow.hq as any) ?? (prev as any).hq ?? '',
-            team: (typedRow.team as any) ?? (prev as any).team ?? '',
-            sales_name: String(typedRow.sales_name ?? (prev as any).sales_name ?? '').replace(/\s/g, ''),
-            car_model: String(typedRow.car_model ?? (prev as any).car_model ?? '').replace(/\s/g, ''),
-            car_color: String(typedRow.car_color ?? (prev as any).car_color ?? '').replace(/\s/g, ''),
-            car_number: String(typedRow.car_number ?? (prev as any).car_number ?? '').replace(/\s/g, '')
+            rank: typedRow.rank ?? prev.rank ?? '',
+            hq: typedRow.hq ?? prev.hq ?? '',
+            team: typedRow.team ?? prev.team ?? '',
+            sales_name: String(typedRow.sales_name ?? prev.sales_name ?? '').replace(/\s/g, ''),
+            car_model: String(typedRow.car_model ?? prev.car_model ?? '').replace(/\s/g, ''),
+            car_color: String(typedRow.car_color ?? prev.car_color ?? '').replace(/\s/g, ''),
+            car_number: String(typedRow.car_number ?? prev.car_number ?? '').replace(/\s/g, '')
           }));
           setNoCar(false);
           return;
@@ -173,14 +173,14 @@ export default function RegisterPage() {
   const showSalesFields = form.staff_type === '영업사원';
   const showContactFields = showRankField || showSalesFields;
 
-  const carFilledAll = Boolean((form as any).car_model?.trim()) && Boolean((form as any).car_color?.trim()) && Boolean((form as any).car_number?.trim());
+  const carFilledAll = Boolean(form.car_model?.trim()) && Boolean(form.car_color?.trim()) && Boolean(form.car_number?.trim());
   const carValid = noCar || carFilledAll;
   const siteValid = Boolean(form.site_id);
   const nameValid = Boolean(form.name?.trim());
   const phoneValid = !showContactFields || Boolean(form.phone?.trim());
-  const rankValid = !showRankField || Boolean((form as any).rank?.trim());
-  const salesOrgValid = !showSalesFields || (Boolean((form as any).hq?.trim()) && Boolean((form as any).team?.trim()) && Boolean((form as any).rank?.trim()));
-  const salesNameValid = !showSalesFields || !useSalesName || Boolean((form as any).sales_name?.trim());
+  const rankValid = !showRankField || Boolean(form.rank?.trim());
+  const salesOrgValid = !showSalesFields || (Boolean(form.hq?.trim()) && Boolean(form.team?.trim()) && Boolean(form.rank?.trim()));
+  const salesNameValid = !showSalesFields || !useSalesName || Boolean(form.sales_name?.trim());
   const privacyValid = !privacyOpen;
 
   const isFormValid = siteValid && nameValid && phoneValid && rankValid && salesOrgValid && carValid && privacyValid && salesNameValid;
@@ -209,7 +209,7 @@ export default function RegisterPage() {
 
       const finalForm = {
         ...form,
-        sales_name: useSalesName ? (form as any).sales_name : null
+        sales_name: useSalesName ? form.sales_name : null
       };
 
       if (staffRowId) {
@@ -309,7 +309,7 @@ export default function RegisterPage() {
 
               <div className={staffUi.form.field}>
                 <label className={staffUi.form.label}>직무 구분</label>
-                <select required value={form.staff_type} onChange={e => setForm({ ...form, staff_type: e.target.value as StaffType, rank: '', hq: '', team: '', sales_name: '' } as any)} className={staffUi.selectClass()}>
+                <select required value={form.staff_type} onChange={e => setForm({ ...form, staff_type: e.target.value as StaffType, rank: '', hq: '', team: '', sales_name: '' })} className={staffUi.selectClass()}>
                   {STAFF_TYPES.map(type => (<option key={type} value={type}>{type}</option>))}
                 </select>
               </div>
@@ -343,13 +343,13 @@ export default function RegisterPage() {
                       영업명(가명) 사용할 경우 체크
                     </label>
                   </div>
-                  <input 
-                    type="text" 
-                    value={(form as any).sales_name || ''} 
+                  <input
+                    type="text"
+                    value={form.sales_name || ''}
                     disabled={!useSalesName}
-                    onChange={e => setForm({ ...(form as any), sales_name: e.target.value.replace(/\s/g, '') })} 
-                    className={staffUi.inputClass(!useSalesName)} 
-                    placeholder="영업명 입력" 
+                    onChange={e => setForm({ ...form, sales_name: e.target.value.replace(/\s/g, '') })}
+                    className={staffUi.inputClass(!useSalesName)}
+                    placeholder="영업명 입력"
                   />
                 </div>
               )}
@@ -357,7 +357,7 @@ export default function RegisterPage() {
               {showRankField && (
                 <div className={staffUi.form.field}>
                   <label className={staffUi.form.label}>직급</label>
-                  <select required value={(form as any).rank || ''} onChange={e => setForm({ ...(form as any), rank: e.target.value })} className={staffUi.selectClass()}>
+                  <select required value={form.rank || ''} onChange={e => setForm({ ...form, rank: e.target.value })} className={staffUi.selectClass()}>
                     <option value="">선택해주세요</option>
                     {RANKS.map(rank => (<option key={rank} value={rank}>{rank}</option>))}
                   </select>
@@ -368,21 +368,21 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className={staffUi.form.field}>
                     <label className={staffUi.form.label}>본부</label>
-                    <select required value={(form as any).hq || ''} onChange={e => setForm({ ...(form as any), hq: e.target.value })} className={staffUi.selectClass()}>
+                    <select required value={form.hq || ''} onChange={e => setForm({ ...form, hq: e.target.value })} className={staffUi.selectClass()}>
                       <option value="">선택</option>
                       {HQ_LIST.map(hq => (<option key={hq} value={hq}>{hq}본부</option>))}
                     </select>
                   </div>
                   <div className={staffUi.form.field}>
                     <label className={staffUi.form.label}>팀</label>
-                    <select required value={(form as any).team || ''} onChange={e => setForm({ ...(form as any), team: e.target.value })} className={staffUi.selectClass()}>
+                    <select required value={form.team || ''} onChange={e => setForm({ ...form, team: e.target.value })} className={staffUi.selectClass()}>
                       <option value="">선택</option>
                       {TEAM_LIST.map(team => (<option key={team} value={team}>{team}팀</option>))}
                     </select>
                   </div>
                   <div className={staffUi.form.field}>
                     <label className={staffUi.form.label}>직급</label>
-                    <select required value={(form as any).rank || ''} onChange={e => setForm({ ...(form as any), rank: e.target.value })} className={staffUi.selectClass()}><option value="">선택</option>{SALES_RANKS.map(rank => (<option key={rank} value={rank}>{rank}</option>))}</select>
+                    <select required value={form.rank || ''} onChange={e => setForm({ ...form, rank: e.target.value })} className={staffUi.selectClass()}><option value="">선택</option>{SALES_RANKS.map(rank => (<option key={rank} value={rank}>{rank}</option>))}</select>
                   </div>
                 </div>
               )}
@@ -397,35 +397,35 @@ export default function RegisterPage() {
               <div className="grid grid-cols-3 gap-2">
                 <div className={staffUi.form.field}>
                   <label className={staffUi.form.label}>차종</label>
-                  <input 
-                    type="text" 
-                    value={(form as any).car_model || ''} 
-                    disabled={noCar} 
-                    onChange={e => setForm({ ...(form as any), car_model: e.target.value.replace(/\s/g, '') })} 
-                    className={staffUi.inputClass(noCar)} 
-                    placeholder="차종" 
+                  <input
+                    type="text"
+                    value={form.car_model || ''}
+                    disabled={noCar}
+                    onChange={e => setForm({ ...form, car_model: e.target.value.replace(/\s/g, '') })}
+                    className={staffUi.inputClass(noCar)}
+                    placeholder="차종"
                   />
                 </div>
                 <div className={staffUi.form.field}>
                   <label className={staffUi.form.label}>색상</label>
-                  <input 
-                    type="text" 
-                    value={(form as any).car_color || ''} 
-                    disabled={noCar} 
-                    onChange={e => setForm({ ...(form as any), car_color: e.target.value.replace(/\s/g, '') })} 
-                    className={staffUi.inputClass(noCar)} 
-                    placeholder="색상" 
+                  <input
+                    type="text"
+                    value={form.car_color || ''}
+                    disabled={noCar}
+                    onChange={e => setForm({ ...form, car_color: e.target.value.replace(/\s/g, '') })}
+                    className={staffUi.inputClass(noCar)}
+                    placeholder="색상"
                   />
                 </div>
                 <div className={staffUi.form.field}>
                   <label className={staffUi.form.label}>번호</label>
-                  <input 
-                    type="text" 
-                    value={(form as any).car_number || ''} 
-                    disabled={noCar} 
-                    onChange={e => setForm({ ...(form as any), car_number: e.target.value.replace(/\s/g, '') })} 
-                    className={staffUi.inputClass(noCar)} 
-                    placeholder="번호" 
+                  <input
+                    type="text"
+                    value={form.car_number || ''}
+                    disabled={noCar}
+                    onChange={e => setForm({ ...form, car_number: e.target.value.replace(/\s/g, '') })}
+                    className={staffUi.inputClass(noCar)}
+                    placeholder="번호"
                   />
                 </div>
               </div>

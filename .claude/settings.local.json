@@ -13,7 +13,8 @@
       "Bash(tree:*)",
       "Bash(pnpm build:all:*)",
       "WebSearch",
-      "WebFetch(domain:supabase.com)"
+      "WebFetch(domain:supabase.com)",
+      "Bash(pnpm --filter @apex/info build:*)"
     ]
   }
 }

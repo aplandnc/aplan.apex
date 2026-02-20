@@ -48,28 +48,18 @@ export async function middleware(req: NextRequest) {
   // 2) response 객체 생성
   const res = NextResponse.next();
 
-  // 3) Supabase 클라이언트
+  // 3) Supabase 클라이언트 (SSR 0.8.0 API)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
+        getAll() {
+          return req.cookies.getAll();
         },
-        set(name: string, value: string, options: { path?: string; maxAge?: number; domain?: string; secure?: boolean; sameSite?: "lax" | "strict" | "none" }) {
-          res.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: { path?: string; domain?: string }) {
-          res.cookies.set({
-            name,
-            value: "",
-            ...options,
-            maxAge: 0,
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            res.cookies.set(name, value, options);
           });
         },
       },
