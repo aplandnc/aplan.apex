@@ -144,7 +144,9 @@ export default function SubmitDocumentPage() {
         canvas.toBlob(
           (blob) => {
             if (blob) {
-              resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+              // 모바일 브라우저 등에서 file.name이 누락될 수 있으므로 안전한 이름 부여
+              const safeName = file.name || 'image.jpg';
+              resolve(new File([blob], safeName, { type: 'image/jpeg' }));
             } else {
               resolve(file);
             }
@@ -166,25 +168,36 @@ export default function SubmitDocumentPage() {
     bankbook: '통장사본',
   };
 
+  // Supabase 스토리지에서 안전하게 사용할 수 있도록 한글, 영문, 숫자, 하이픈, 언더바만 허용
   const sanitize = (str: string) => {
+    if (!str) return '';
     return str
       .trim()
-      .replace(/[\/\\:*?"<>|#%&+=]/g, '')  // 파일명/URL 금지 문자 제거
-      .replace(/\s+/g, '_')                 // 공백을 언더바로
-      .replace(/_+/g, '_')                  // 연속 언더바 정리
-      .replace(/^_|_$/g, '');               // 앞뒤 언더바 제거
+      .replace(/[^가-힣a-zA-Z0-9\-_]/g, '')  // 유효하지 않은 특수문자 전부 제거
+      .replace(/\s+/g, '_')                  // 혹시 남은 공백이 있다면 언더바로
+      .replace(/_+/g, '_')                   // 연속된 언더바 정리
+      .replace(/^_|_$/g, '');                // 앞뒤 언더바 제거
   };
 
   const buildFileName = (docType: string, ext: string) => {
     const parts: string[] = [];
 
-    parts.push(sanitize(staffInfo?.site_name || '미지정'));
-    if (staffInfo?.hq) parts.push(sanitize(`${staffInfo.hq}본부`));
-    if (staffInfo?.team) parts.push(sanitize(`${staffInfo.team}팀`));
+    const site = sanitize(staffInfo?.site_name || '') || '미지정';
+    parts.push(site);
+    
+    if (staffInfo?.hq) {
+      const hq = sanitize(`${staffInfo.hq}본부`);
+      if (hq) parts.push(hq);
+    }
+    if (staffInfo?.team) {
+      const team = sanitize(`${staffInfo.team}팀`);
+      if (team) parts.push(team);
+    }
 
     const personName = staffInfo?.sales_name || staffInfo?.name || '미입력';
     const rank = staffInfo?.rank || '';
-    parts.push(sanitize(rank ? `${personName}_${rank}` : personName));
+    const nameRank = sanitize(rank ? `${personName}_${rank}` : personName) || '미입력';
+    parts.push(nameRank);
 
     parts.push(DOC_TYPE_LABEL[docType] || docType);
 
@@ -282,7 +295,9 @@ export default function SubmitDocumentPage() {
 
     try {
       const supabase = supabaseAppClient();
-      const siteName = sanitize(staffInfo.site_name || '미지정');
+      
+      // siteName이 빈 문자열이 되는 것을 막아 invalid key 방지
+      const siteName = sanitize(staffInfo.site_name || '') || '미지정';
       const uploadedPaths: Record<string, string> = {};
 
       // ── 파일 업로드 ──
@@ -296,7 +311,7 @@ export default function SubmitDocumentPage() {
         const { error } = await supabase.storage
           .from('staff_docs')
           .upload(storagePath, documents.registration.file, {
-            contentType: documents.registration.file.type,
+            contentType: documents.registration.file.type || 'application/octet-stream',
             upsert: false,
           });
         if (error) throw new Error(`등본 업로드 실패: ${error.message}`);
@@ -313,7 +328,7 @@ export default function SubmitDocumentPage() {
         const { error } = await supabase.storage
           .from('staff_docs')
           .upload(storagePath, documents.idCard.file, {
-            contentType: documents.idCard.file.type,
+            contentType: documents.idCard.file.type || 'application/octet-stream',
             upsert: false,
           });
         if (error) throw new Error(`신분증 업로드 실패: ${error.message}`);
@@ -329,7 +344,7 @@ export default function SubmitDocumentPage() {
         const { error } = await supabase.storage
           .from('staff_docs')
           .upload(storagePath, documents.bankbook.file, {
-            contentType: documents.bankbook.file.type,
+            contentType: documents.bankbook.file.type || 'application/octet-stream',
             upsert: false,
           });
         if (error) throw new Error(`통장사본 업로드 실패: ${error.message}`);
