@@ -166,7 +166,14 @@ export default function SubmitDocumentPage() {
     bankbook: '통장사본',
   };
 
-  const sanitize = (str: string) => str.replace(/\s+/g, '-');
+  const sanitize = (str: string) => {
+    return str
+      .trim()
+      .replace(/[\/\\:*?"<>|#%&+=]/g, '')  // 파일명/URL 금지 문자 제거
+      .replace(/\s+/g, '_')                 // 공백을 언더바로
+      .replace(/_+/g, '_')                  // 연속 언더바 정리
+      .replace(/^_|_$/g, '');               // 앞뒤 언더바 제거
+  };
 
   const buildFileName = (docType: string, ext: string) => {
     const parts: string[] = [];

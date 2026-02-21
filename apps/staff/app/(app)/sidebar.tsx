@@ -30,16 +30,32 @@ export default function Sidebar({
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // PWA 설치 프롬프트 캐치
+    // 전역에서 이미 캡처된 프롬프트 확인
+    const globalPrompt = (window as any).__pwaInstallPrompt;
+    if (globalPrompt) {
+      setDeferredPrompt(globalPrompt);
+    }
+
+    // 전역 캡처 이벤트 리스너 (늦게 마운트되어도 받을 수 있음)
+    const handlePwaReady = () => {
+      const prompt = (window as any).__pwaInstallPrompt;
+      if (prompt) {
+        setDeferredPrompt(prompt);
+      }
+    };
+
+    // 이후 발생하는 beforeinstallprompt도 캐치
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      (window as any).__pwaInstallPrompt = e;
     };
 
     // 이미 설치된 경우 감지
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
+      (window as any).__pwaInstallPrompt = null;
     };
 
     // standalone 모드 체크 (이미 PWA로 실행 중)
@@ -47,10 +63,12 @@ export default function Sidebar({
       setIsInstalled(true);
     }
 
+    window.addEventListener("pwaInstallReady", handlePwaReady);
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
     window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
+      window.removeEventListener("pwaInstallReady", handlePwaReady);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
       window.removeEventListener("appinstalled", handleAppInstalled);
     };

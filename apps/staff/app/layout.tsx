@@ -34,6 +34,9 @@ export default function RootLayout({
         <Script id="sw-register" strategy="afterInteractive">
           {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}`}
         </Script>
+        <Script id="pwa-install-capture" strategy="beforeInteractive">
+          {`window.__pwaInstallPrompt=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaInstallPrompt=e;window.dispatchEvent(new CustomEvent('pwaInstallReady'));});`}
+        </Script>
       </body>
     </html>
   );
