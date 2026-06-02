@@ -15,6 +15,7 @@ interface VisitRecord {
   id: string; guest_name: string; phone: string; phone_index: string;
   visit_date: string; visit_type: string; visit_cnt: number; staff_uuid: string | null;
   staff_name?: string; staff_hq?: string | null; staff_team?: string | null; staff_rank?: string | null;
+  created_at?: string;
 }
 interface StaffInfo {
   id: string; hq: string | null; team: string | null; name: string; rank: string | null;
@@ -30,8 +31,9 @@ interface CarSearchResult {
 }
 
 // ── 상수 ──
-const HQ_OPTIONS = Array.from({ length: 11 }, (_, i) => `${i}본부`);
-const TEAM_OPTIONS = Array.from({ length: 21 }, (_, i) => `${i}팀`);
+const HQ_OPTIONS = Array.from({ length: 11 }, (_, i) => String(i));
+const TEAM_OPTIONS = Array.from({ length: 21 }, (_, i) => String(i));
+const TIME_SLOTS = ["~10:00", "10:00-11:00", "11:00-12:00", "12:00-13:00", "13:00-14:00", "14:00-15:00", "15:00-16:00", "16:00-17:00", "17:00-18:00", "18:00~"];
 const RANK_OPTIONS = ["총괄", "팀장", "부장", "차장", "실장", "과장", "대리", "사원", "기타"];
 const VISIT_TYPES = ["지명", "워킹", "기타"] as const;
 const STAFF_EMOJIS = ["👨", "👩", "🧑", "👨‍💼", "👩‍💼", "🧑‍💼", "👷", "👷‍♀️", "🧑‍🔧", "👨‍🔧", "👩‍🔧", "🧑‍💻", "👨‍💻", "👩‍💻"];
@@ -112,6 +114,24 @@ export default function TypeReservedPage() {
   const [carSearchKeyword, setCarSearchKeyword] = useState("");
   const [carSearchResults, setCarSearchResults] = useState<CarSearchResult[]>([]);
   const [isCarSearching, setIsCarSearching] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [todayVisits, setTodayVisits] = useState<VisitRecord[]>([]);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const BASE_WIDTH = 1920;
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      if (currentWidth < BASE_WIDTH) {
+        setScale(currentWidth / BASE_WIDTH);
+      } else {
+        setScale(1);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("info_site");
@@ -145,16 +165,23 @@ export default function TypeReservedPage() {
     router.replace("/");
   };
 
-  const handleCarSearch = async () => {
-    if (!site || !carSearchKeyword.trim()) return;
+  // 차량검색 실시간 조회
+  useEffect(() => {
+    if (!site || !carSearchKeyword.trim()) {
+      setCarSearchResults([]);
+      return;
+    }
     setIsCarSearching(true);
-    try {
-      const res = await fetch(`/api/car-search?site_id=${site.id}&car_number=${encodeURIComponent(carSearchKeyword.trim())}`);
-      const data = await res.json();
-      if (res.ok) setCarSearchResults(data.results || []);
-    } catch (err) { console.error(err); }
-    finally { setIsCarSearching(false); }
-  };
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/car-search?site_id=${site.id}&car_number=${encodeURIComponent(carSearchKeyword.trim())}`);
+        const data = await res.json();
+        if (res.ok) setCarSearchResults(data.results || []);
+      } catch (err) { console.error(err); }
+      finally { setIsCarSearching(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [site, carSearchKeyword]);
 
   const loadRecentVisits = useCallback(async () => {
     if (!site) return;
@@ -166,6 +193,42 @@ export default function TypeReservedPage() {
   }, [site]);
 
   useEffect(() => { loadRecentVisits(); }, [loadRecentVisits]);
+
+  const loadTodayVisits = useCallback(async () => {
+    if (!site) return;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const res = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: site.id, keyword: "", type: "today_visits", date: today }) });
+      const data = await res.json();
+      if (res.ok) setTodayVisits(data.visits || []);
+    } catch (err) { console.error(err); }
+  }, [site]);
+
+  useEffect(() => { loadTodayVisits(); }, [loadTodayVisits]);
+
+  const getTimeSlotIndex = (dateStr: string) => {
+    const hour = new Date(dateStr).getHours();
+    if (hour < 10) return 0;
+    if (hour >= 18) return 9;
+    return hour - 9;
+  };
+
+  const visitStats = useMemo(() => {
+    const stats = TIME_SLOTS.map(() => ({ jm_cnt: 0, jm_ppl: 0, wk_cnt: 0, wk_ppl: 0 }));
+    todayVisits.forEach((v) => {
+      const idx = getTimeSlotIndex(v.created_at || v.visit_date);
+      if (v.visit_type === "지명") { stats[idx].jm_cnt++; stats[idx].jm_ppl += v.visit_cnt || 1; }
+      else if (v.visit_type === "워킹") { stats[idx].wk_cnt++; stats[idx].wk_ppl += v.visit_cnt || 1; }
+    });
+    return stats;
+  }, [todayVisits]);
+
+  const totalStats = useMemo(() => {
+    return visitStats.reduce((acc, s) => ({
+      jm_cnt: acc.jm_cnt + s.jm_cnt, jm_ppl: acc.jm_ppl + s.jm_ppl,
+      wk_cnt: acc.wk_cnt + s.wk_cnt, wk_ppl: acc.wk_ppl + s.wk_ppl
+    }), { jm_cnt: 0, jm_ppl: 0, wk_cnt: 0, wk_ppl: 0 });
+  }, [visitStats]);
 
   const staffHqOptions = useMemo(() => Array.from(new Set(allStaffList.map((s) => s.hq).filter(Boolean) as string[])).sort(), [allStaffList]);
   const staffTeamOptions = useMemo(() => {
@@ -331,12 +394,21 @@ export default function TypeReservedPage() {
   );
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 text-gray-900">
+    <div
+      className="flex flex-col bg-gray-50 text-gray-900"
+      style={{
+        transform: `scale(${scale})`,
+        transformOrigin: "top left",
+        width: `${100 / scale}%`,
+        height: `${100 / scale}vh`,
+      }}
+    >
       <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-lg font-extrabold tracking-widest text-blue-600">APEX</span>
           <div className="w-px h-5 bg-gray-200" />
           <span className="text-sm text-gray-500 font-medium">조직 방문 관리</span>
+          <button onClick={() => { loadTodayVisits(); setShowStatsModal(true); }} className="px-3 py-1.5 bg-violet-500 text-white text-xs font-semibold rounded-lg hover:bg-violet-600 transition-colors">📊 집계</button>
         </div>
         <div className="flex items-center gap-3">
           <span className="px-3 py-1 bg-blue-50 border border-blue-100 rounded-full text-xs text-blue-600 font-semibold">📍 {site.name}</span>
@@ -432,8 +504,8 @@ export default function TypeReservedPage() {
                 {form.staff_uuid && <p className="text-[10px] text-green-500 mt-0.5">✓ 직원 매칭됨</p>}
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <div className="flex flex-col gap-1"><label className="text-[11px] font-semibold text-gray-400">본부</label><select className={form.staff_uuid ? selectClassDisabled : selectClass} value={form.staff_hq} onChange={(e) => setForm((p) => ({ ...p, staff_hq: e.target.value }))} disabled={!!form.staff_uuid}><option value="">선택</option>{HQ_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select></div>
-                <div className="flex flex-col gap-1"><label className="text-[11px] font-semibold text-gray-400">팀</label><select className={form.staff_uuid ? selectClassDisabled : selectClass} value={form.staff_team} onChange={(e) => setForm((p) => ({ ...p, staff_team: e.target.value }))} disabled={!!form.staff_uuid}><option value="">선택</option>{TEAM_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select></div>
+                <div className="flex flex-col gap-1"><label className="text-[11px] font-semibold text-gray-400">본부</label><select className={form.staff_uuid ? selectClassDisabled : selectClass} value={form.staff_hq} onChange={(e) => setForm((p) => ({ ...p, staff_hq: e.target.value }))} disabled={!!form.staff_uuid}><option value="">선택</option>{HQ_OPTIONS.map((v) => <option key={v} value={v}>{v}본부</option>)}</select></div>
+                <div className="flex flex-col gap-1"><label className="text-[11px] font-semibold text-gray-400">팀</label><select className={form.staff_uuid ? selectClassDisabled : selectClass} value={form.staff_team} onChange={(e) => setForm((p) => ({ ...p, staff_team: e.target.value }))} disabled={!!form.staff_uuid}><option value="">선택</option>{TEAM_OPTIONS.map((v) => <option key={v} value={v}>{v}팀</option>)}</select></div>
                 <div className="flex flex-col gap-1"><label className="text-[11px] font-semibold text-gray-400">직급</label><select className={form.staff_uuid ? selectClassDisabled : selectClass} value={form.staff_rank} onChange={(e) => setForm((p) => ({ ...p, staff_rank: e.target.value }))} disabled={!!form.staff_uuid}><option value="">선택</option>{RANK_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select></div>
               </div>
               <div className="grid grid-cols-3 gap-2 mt-1">
@@ -468,8 +540,8 @@ export default function TypeReservedPage() {
                         {showEditStaffDropdown && editStaffOptions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 max-h-32 overflow-y-auto">{editStaffOptions.map((s) => (<div key={s.id} onMouseDown={() => selectEditStaff(s)} className="px-2 py-1.5 hover:bg-gray-50 cursor-pointer text-xs">{[fmtHq(s.hq), fmtTeam(s.team), s.display_name, s.rank].filter(Boolean).join(" ")}</div>))}</div>)}
                       </div>
                       <div className="grid grid-cols-3 gap-1">
-                        <select className={selectClass + " !text-xs !py-1"} value={editForm.staff_hq} onChange={(e) => setEditForm((p) => ({ ...p, staff_hq: e.target.value }))} disabled={!!editForm.staff_uuid}><option value="">본부</option>{HQ_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select>
-                        <select className={selectClass + " !text-xs !py-1"} value={editForm.staff_team} onChange={(e) => setEditForm((p) => ({ ...p, staff_team: e.target.value }))} disabled={!!editForm.staff_uuid}><option value="">팀</option>{TEAM_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select>
+                        <select className={selectClass + " !text-xs !py-1"} value={editForm.staff_hq} onChange={(e) => setEditForm((p) => ({ ...p, staff_hq: e.target.value }))} disabled={!!editForm.staff_uuid}><option value="">본부</option>{HQ_OPTIONS.map((v) => <option key={v} value={v}>{v}본부</option>)}</select>
+                        <select className={selectClass + " !text-xs !py-1"} value={editForm.staff_team} onChange={(e) => setEditForm((p) => ({ ...p, staff_team: e.target.value }))} disabled={!!editForm.staff_uuid}><option value="">팀</option>{TEAM_OPTIONS.map((v) => <option key={v} value={v}>{v}팀</option>)}</select>
                         <select className={selectClass + " !text-xs !py-1"} value={editForm.staff_rank} onChange={(e) => setEditForm((p) => ({ ...p, staff_rank: e.target.value }))} disabled={!!editForm.staff_uuid}><option value="">직급</option>{RANK_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}</select>
                       </div>
                       <div className="flex gap-1">
@@ -532,45 +604,91 @@ export default function TypeReservedPage() {
         </section>
       </main>
 
-      {/* 차량검색 모달 */}
-      {showCarModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowCarModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+      {/* 차량검색 드로어 */}
+      <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${showCarModal ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
+        <div className="absolute inset-0 bg-black/40" onClick={() => setShowCarModal(false)} />
+        <div className={`absolute right-0 top-0 bottom-0 w-80 bg-white shadow-2xl transform transition-transform duration-300 ${showCarModal ? "translate-x-0" : "translate-x-full"}`}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+            <h3 className="text-base font-bold">🚗 차량 검색</h3>
+            <button onClick={() => setShowCarModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+          </div>
+          <div className="p-5">
+            <div className="mb-4">
+              <input
+                type="text"
+                placeholder="차량번호 뒤 4자리"
+                maxLength={4}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
+                value={carSearchKeyword}
+                onChange={(e) => setCarSearchKeyword(e.target.value.replace(/[^0-9]/g, ""))}
+              />
+            </div>
+            <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 160px)" }}>
+              {isCarSearching ? (
+                <div className="text-center text-gray-400 py-8">검색 중...</div>
+              ) : carSearchResults.length === 0 ? (
+                <div className="text-center text-gray-300 py-8">
+                  <span className="text-2xl block mb-1">🚗</span>
+                  <span className="text-sm">{carSearchKeyword ? "검색 결과 없음" : "차량번호를 입력하세요"}</span>
+                </div>
+              ) : (
+                carSearchResults.map((r) => (
+                  <div key={r.id} className="px-4 py-3 border border-gray-200 rounded-lg mb-2 bg-gray-50">
+                    <div className="text-sm font-medium text-gray-800">{[fmtHq(r.hq), fmtTeam(r.team), r.name, r.rank].filter(Boolean).join(" ")}</div>
+                    <div className="text-xs text-emerald-600 mt-1 font-medium">{[r.car_model, r.car_color, r.car_number].filter(Boolean).join(" · ")}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 집계 모달 */}
+      {showStatsModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowStatsModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-              <h3 className="text-base font-bold">🚗 차량 검색</h3>
-              <button onClick={() => setShowCarModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+              <h3 className="text-base font-bold">📊 오늘 방문 집계</h3>
+              <button onClick={() => setShowStatsModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
             </div>
             <div className="p-5">
-              <div className="flex gap-2 mb-4">
-                <input
-                  type="text"
-                  placeholder="차량번호 뒤 4자리"
-                  maxLength={4}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
-                  value={carSearchKeyword}
-                  onChange={(e) => setCarSearchKeyword(e.target.value.replace(/[^0-9]/g, ""))}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleCarSearch(); }}
-                  autoFocus
-                />
-                <button onClick={handleCarSearch} disabled={isCarSearching || !carSearchKeyword.trim()} className="px-5 py-2.5 bg-emerald-500 text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 disabled:opacity-50 transition-colors">검색</button>
-              </div>
-              <div className="max-h-64 overflow-y-auto">
-                {isCarSearching ? (
-                  <div className="text-center text-gray-400 py-8">검색 중...</div>
-                ) : carSearchResults.length === 0 ? (
-                  <div className="text-center text-gray-300 py-8">
-                    <span className="text-2xl block mb-1">🚗</span>
-                    <span className="text-sm">{carSearchKeyword ? "검색 결과 없음" : "차량번호를 입력하세요"}</span>
-                  </div>
-                ) : (
-                  carSearchResults.map((r) => (
-                    <div key={r.id} className="px-4 py-3 border border-gray-200 rounded-lg mb-2 bg-gray-50">
-                      <div className="text-sm font-medium text-gray-800">{[fmtHq(r.hq), fmtTeam(r.team), r.name, r.rank].filter(Boolean).join(" ")}</div>
-                      <div className="text-xs text-emerald-600 mt-1 font-medium">{[r.car_model, r.car_color, r.car_number].filter(Boolean).join(" · ")}</div>
-                    </div>
-                  ))
-                )}
-              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="py-2 text-left text-gray-500 font-medium">시간대</th>
+                    <th className="py-2 text-center text-blue-600 font-medium" colSpan={2}>지명</th>
+                    <th className="py-2 text-center text-violet-600 font-medium" colSpan={2}>워킹</th>
+                  </tr>
+                  <tr className="border-b border-gray-100 text-xs text-gray-400">
+                    <th></th>
+                    <th className="py-1 text-center">건</th>
+                    <th className="py-1 text-center">명</th>
+                    <th className="py-1 text-center">건</th>
+                    <th className="py-1 text-center">명</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {TIME_SLOTS.map((slot, idx) => (
+                    <tr key={slot} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-2 text-gray-600">{slot}</td>
+                      <td className="py-2 text-center text-blue-600 font-medium">{visitStats[idx].jm_cnt || "-"}</td>
+                      <td className="py-2 text-center text-blue-600">{visitStats[idx].jm_ppl || "-"}</td>
+                      <td className="py-2 text-center text-violet-600 font-medium">{visitStats[idx].wk_cnt || "-"}</td>
+                      <td className="py-2 text-center text-violet-600">{visitStats[idx].wk_ppl || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-200 font-bold">
+                    <td className="py-3 text-gray-800">합계</td>
+                    <td className="py-3 text-center text-blue-600">{totalStats.jm_cnt}</td>
+                    <td className="py-3 text-center text-blue-600">{totalStats.jm_ppl}</td>
+                    <td className="py-3 text-center text-violet-600">{totalStats.wk_cnt}</td>
+                    <td className="py-3 text-center text-violet-600">{totalStats.wk_ppl}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </div>
         </div>

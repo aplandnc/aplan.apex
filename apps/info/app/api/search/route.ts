@@ -17,14 +17,14 @@ function serviceClient() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { site_id, keyword, type } = await req.json();
+    const { site_id, keyword, type, date } = await req.json();
 
     if (!site_id) {
       return NextResponse.json({ error: "site_id 필수" }, { status: 400 });
     }
 
-    // staff_all, recent_visits는 keyword 없어도 허용
-    if (type !== "staff_all" && type !== "recent_visits" && !keyword?.trim()) {
+    // staff_all, recent_visits, today_visits는 keyword 없어도 허용
+    if (type !== "staff_all" && type !== "recent_visits" && type !== "today_visits" && !keyword?.trim()) {
       return NextResponse.json({ error: "site_id, keyword 필수" }, { status: 400 });
     }
 
@@ -74,6 +74,21 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({ visits: visitWithStaff });
+    }
+
+    // ── 오늘 방문 전체 (집계용) ──
+    if (type === "today_visits") {
+      const today = date || new Date().toISOString().slice(0, 10);
+
+      const { data: visitData, error: visitErr } = await srv
+        .from("visitor_guest")
+        .select("id, visit_date, visit_type, visit_cnt, created_at")
+        .eq("site_id", site_id)
+        .eq("visit_date", today);
+
+      if (visitErr) throw visitErr;
+
+      return NextResponse.json({ visits: visitData || [] });
     }
 
     // ── 전체 직원 목록 ──
@@ -138,7 +153,8 @@ export async function POST(req: NextRequest) {
     if (isPhone) {
       reservedQuery = reservedQuery.eq("phone_index", kw);
     } else {
-      reservedQuery = reservedQuery.ilike("guest_name", `%${kw}%`);
+      const kwNoSpace = kw.replace(/\s+/g, "");
+      reservedQuery = reservedQuery.ilike("guest_name", `%${kwNoSpace}%`);
     }
 
     const { data: reservedData, error: resErr } = await reservedQuery;
@@ -188,7 +204,8 @@ export async function POST(req: NextRequest) {
     if (isPhone) {
       visitQuery = visitQuery.eq("phone_index", kw);
     } else {
-      visitQuery = visitQuery.ilike("guest_name", `%${kw}%`);
+      const kwNoSpace = kw.replace(/\s+/g, "");
+      visitQuery = visitQuery.ilike("guest_name", `%${kwNoSpace}%`);
     }
 
     const { data: visitData, error: visitErr } = await visitQuery;
