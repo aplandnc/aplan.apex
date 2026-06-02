@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { adminUi } from '@apex/ui/styles/admin';
 import '@apex/ui/styles/globals.css';
 
@@ -23,6 +24,7 @@ const TIME_SLOTS = [
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function CounterPage() {
+  const router = useRouter();
   const [site, setSite] = useState<SiteInfo | null>(null);
   const [slots, setSlots] = useState<TimeSlot[]>(
     TIME_SLOTS.map(slot => ({ time_slot: slot, team_count: 0, person_count: 0 }))
@@ -157,6 +159,12 @@ export default function CounterPage() {
 
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
 
+  const handleLogout = () => {
+    sessionStorage.removeItem("info_site");
+    document.cookie = "apex-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    router.replace("/");
+  };
+
   const renderCounter = (count: number) => {
     const digits = String(count).padStart(4, '0').split('');
     return (
@@ -196,15 +204,16 @@ export default function CounterPage() {
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-6">
             <div className={adminUi.card}>
-              <div className="grid grid-cols-2 gap-4 p-3">
-                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-4 p-3">
+                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 flex-1">
                   <span className="text-2xl">📅</span>
                   <div className="text-base font-semibold text-gray-700">{formatDate()}</div>
                 </div>
-                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 flex-1">
                   <span className="text-2xl">🕐</span>
                   <div className="text-xl font-bold text-blue-600 font-mono">{formatTime()}</div>
                 </div>
+                <button onClick={handleLogout} className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-600 font-medium hover:bg-gray-200 transition-colors shrink-0">로그아웃</button>
               </div>
             </div>
 

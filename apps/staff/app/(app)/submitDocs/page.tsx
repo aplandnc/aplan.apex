@@ -48,6 +48,7 @@ export default function SubmitDocumentPage() {
   const [isTaxInvoice, setIsTaxInvoice] = useState(false);
   const [isCombinedIdBank, setIsCombinedIdBank] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -90,11 +91,11 @@ export default function SubmitDocumentPage() {
 
       if (staffResult.data && staffResult.data.site_id) {
         const staff = staffResult.data;
-        const { data: site } = await supabase
-          .from('sites')
-          .select('name')
-          .eq('id', staff.site_id)
-          .single();
+
+        const [siteResult, docResult] = await Promise.all([
+          supabase.from('sites').select('name').eq('id', staff.site_id).single(),
+          supabase.from('users_staff_docs').select('status').eq('user_id', staff.id).maybeSingle(),
+        ]);
 
         setStaffInfo({
           id: staff.id,
@@ -104,7 +105,7 @@ export default function SubmitDocumentPage() {
           hq: staff.hq || '',
           team: staff.team || '',
           site_id: staff.site_id,
-          site_name: site?.name || '',
+          site_name: siteResult.data?.name || '',
         });
 
         setFormData(prev => ({
@@ -112,6 +113,10 @@ export default function SubmitDocumentPage() {
           accountHolder: staff.name || '',
           name: staff.name || ''
         }));
+
+        if (docResult.data?.status === 'submitted') {
+          setIsSubmitted(true);
+        }
       }
     };
 
@@ -144,7 +149,6 @@ export default function SubmitDocumentPage() {
         canvas.toBlob(
           (blob) => {
             if (blob) {
-              // 모바일 브라우저 등에서 file.name이 누락될 수 있으므로 안전한 이름 부여
               const safeName = file.name || 'image.jpg';
               resolve(new File([blob], safeName, { type: 'image/jpeg' }));
             } else {
@@ -160,7 +164,15 @@ export default function SubmitDocumentPage() {
     });
   };
 
-  // ─── 파일명 규칙: {현장명}_{N본부}_{N팀}_{영업명/이름_직급}_{서류종류}.{ext} ───
+  // 스토리지 저장용 영문 docType 키
+  const DOC_TYPE_KEY: Record<string, string> = {
+    registration: 'registration',
+    idCard: 'id_card',
+    idCardCombined: 'id_card_combined',
+    bankbook: 'bankbook',
+  };
+
+  // 다운로드용 한글 original_file_name 생성에 쓰이는 라벨
   const DOC_TYPE_LABEL: Record<string, string> = {
     registration: '등본',
     idCard: '신분증',
@@ -168,39 +180,31 @@ export default function SubmitDocumentPage() {
     bankbook: '통장사본',
   };
 
-  // Supabase 스토리지에서 안전하게 사용할 수 있도록 한글, 영문, 숫자, 하이픈, 언더바만 허용
-  const sanitize = (str: string) => {
+  // 한글 공백을 언더바로 치환 (original_file_name 용)
+  const sanitizeKo = (str: string) => {
     if (!str) return '';
-    return str
-      .trim()
-      .replace(/[^가-힣a-zA-Z0-9\-_]/g, '')  // 유효하지 않은 특수문자 전부 제거
-      .replace(/\s+/g, '_')                  // 혹시 남은 공백이 있다면 언더바로
-      .replace(/_+/g, '_')                   // 연속된 언더바 정리
-      .replace(/^_|_$/g, '');                // 앞뒤 언더바 제거
+    return str.trim().replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   };
 
-  const buildFileName = (docType: string, ext: string) => {
+  // 스토리지 저장 경로: {site_id}/{user_id}_{docTypeKey}_{timestamp}.{ext}
+  const buildStoragePath = (docType: string, ext: string) => {
+    const siteId = staffInfo?.site_id || 'unknown';
+    const userId = staffInfo?.id || 'unknown';
+    const typeKey = DOC_TYPE_KEY[docType] || docType;
+    const timestamp = Date.now();
+    return `${siteId}/${userId}_${typeKey}_${timestamp}.${ext}`;
+  };
+
+  // DB에 저장할 한글 원본 파일명: {현장명}_{N본부}_{N팀}_{영업명/이름_직급}_{서류종류}.{ext}
+  const buildOriginalFileName = (docType: string, ext: string) => {
     const parts: string[] = [];
-
-    const site = sanitize(staffInfo?.site_name || '') || '미지정';
-    parts.push(site);
-    
-    if (staffInfo?.hq) {
-      const hq = sanitize(`${staffInfo.hq}본부`);
-      if (hq) parts.push(hq);
-    }
-    if (staffInfo?.team) {
-      const team = sanitize(`${staffInfo.team}팀`);
-      if (team) parts.push(team);
-    }
-
+    parts.push(sanitizeKo(staffInfo?.site_name || '미지정'));
+    if (staffInfo?.hq) parts.push(sanitizeKo(`${staffInfo.hq}본부`));
+    if (staffInfo?.team) parts.push(sanitizeKo(`${staffInfo.team}팀`));
     const personName = staffInfo?.sales_name || staffInfo?.name || '미입력';
     const rank = staffInfo?.rank || '';
-    const nameRank = sanitize(rank ? `${personName}_${rank}` : personName) || '미입력';
-    parts.push(nameRank);
-
+    parts.push(sanitizeKo(rank ? `${personName}_${rank}` : personName));
     parts.push(DOC_TYPE_LABEL[docType] || docType);
-
     return `${parts.join('_')}.${ext}`;
   };
 
@@ -231,13 +235,10 @@ export default function SubmitDocumentPage() {
   };
 
   // ─── 파일 선택 (선택 시점에 압축) ───
-  const handleFileSelect = (type: 'camera' | 'upload', docType: keyof typeof documents) => {
+  const handleFileSelect = (docType: keyof typeof documents) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*,application/pdf';
-    if (type === 'camera') {
-      input.setAttribute('capture', 'environment');
-    }
     
     input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
@@ -295,60 +296,48 @@ export default function SubmitDocumentPage() {
 
     try {
       const supabase = supabaseAppClient();
-      
-      // siteName이 빈 문자열이 되는 것을 막아 invalid key 방지
-      const siteName = sanitize(staffInfo.site_name || '') || '미지정';
-      const uploadedPaths: Record<string, string> = {};
 
-      // ── 파일 업로드 ──
+      const uploadedPaths: Record<string, string> = {};
+      const originalFileNames: Record<string, string> = {};
+
+      // ── 파일 업로드 헬퍼 ──
+      const uploadFile = async (file: File, docType: string, label: string) => {
+        const ext = file.type === 'application/pdf' ? 'pdf' : 'jpg';
+        const storagePath = buildStoragePath(docType, ext);
+        const originalFileName = buildOriginalFileName(docType, ext);
+
+        const { error } = await supabase.storage
+          .from('staff_docs')
+          .upload(storagePath, file, {
+            contentType: file.type || 'application/octet-stream',
+            upsert: false,
+          });
+
+        if (error) throw new Error(`${label} 업로드 실패: ${error.message}`);
+
+        return { storagePath, originalFileName };
+      };
 
       // 1) 등본
       if (documents.registration.file) {
-        const ext = documents.registration.file.type === 'application/pdf' ? 'pdf' : 'jpg';
-        const fileName = buildFileName('registration', ext);
-        const storagePath = `${siteName}/${fileName}`;
-
-        const { error } = await supabase.storage
-          .from('staff_docs')
-          .upload(storagePath, documents.registration.file, {
-            contentType: documents.registration.file.type || 'application/octet-stream',
-            upsert: false,
-          });
-        if (error) throw new Error(`등본 업로드 실패: ${error.message}`);
-        uploadedPaths.registration = storagePath;
+        const result = await uploadFile(documents.registration.file, 'registration', '등본');
+        uploadedPaths.registration = result.storagePath;
+        originalFileNames.registration = result.originalFileName;
       }
 
-      // 2) 신분증 (한 장 사진이면 파일명을 "신분증및통장사본"으로)
+      // 2) 신분증
       if (documents.idCard.file) {
         const docTypeKey = isCombinedIdBank ? 'idCardCombined' : 'idCard';
-        const ext = documents.idCard.file.type === 'application/pdf' ? 'pdf' : 'jpg';
-        const fileName = buildFileName(docTypeKey, ext);
-        const storagePath = `${siteName}/${fileName}`;
-
-        const { error } = await supabase.storage
-          .from('staff_docs')
-          .upload(storagePath, documents.idCard.file, {
-            contentType: documents.idCard.file.type || 'application/octet-stream',
-            upsert: false,
-          });
-        if (error) throw new Error(`신분증 업로드 실패: ${error.message}`);
-        uploadedPaths.idCard = storagePath;
+        const result = await uploadFile(documents.idCard.file, docTypeKey, '신분증');
+        uploadedPaths.idCard = result.storagePath;
+        originalFileNames.idCard = result.originalFileName;
       }
 
-      // 3) 통장사본 (한 장 사진이 아닐 때만)
+      // 3) 통장사본
       if (!isCombinedIdBank && documents.bankbook.file) {
-        const ext = documents.bankbook.file.type === 'application/pdf' ? 'pdf' : 'jpg';
-        const fileName = buildFileName('bankbook', ext);
-        const storagePath = `${siteName}/${fileName}`;
-
-        const { error } = await supabase.storage
-          .from('staff_docs')
-          .upload(storagePath, documents.bankbook.file, {
-            contentType: documents.bankbook.file.type || 'application/octet-stream',
-            upsert: false,
-          });
-        if (error) throw new Error(`통장사본 업로드 실패: ${error.message}`);
-        uploadedPaths.bankbook = storagePath;
+        const result = await uploadFile(documents.bankbook.file, 'bankbook', '통장사본');
+        uploadedPaths.bankbook = result.storagePath;
+        originalFileNames.bankbook = result.originalFileName;
       }
 
       // ── DB 저장 ──
@@ -376,14 +365,18 @@ export default function SubmitDocumentPage() {
           invoice_bank_number: isTaxInvoice ? formData.taxAccountNumber : null,
           same_photo_check: isCombinedIdBank,
           resi_doc_url: uploadedPaths.registration || null,
+          resi_doc_original_name: originalFileNames.registration || null,
           id_card_url: idCardUrl,
+          id_card_original_name: originalFileNames.idCard || null,
           bank_account_url: bankAccountUrl,
+          bank_account_original_name: originalFileNames.bankbook || null,
           submitted_at: new Date().toISOString(),
           status: 'submitted',
         });
 
       if (dbError) throw new Error(`저장 실패: ${dbError.message}`);
 
+      setIsSubmitted(true);
       alert('서류가 제출되었습니다.');
       // TODO: 완료 페이지 이동
 
@@ -401,7 +394,7 @@ export default function SubmitDocumentPage() {
         src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js" 
         strategy="lazyOnload"
       />
-      <div className="bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
+      <div className="min-h-full bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
       <div className={staffUi.layout.main}>
         <div className="max-w-md mx-auto space-y-3">
           {/* 등록현장/등록자 정보 */}
@@ -449,6 +442,7 @@ export default function SubmitDocumentPage() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className={staffUi.inputClass()}
                   placeholder="성명을 입력하세요"
+                  disabled={isSubmitted}
                 />
               </div>
 
@@ -464,6 +458,7 @@ export default function SubmitDocumentPage() {
                   className={staffUi.inputClass()}
                   placeholder="000000-0000000"
                   maxLength={14}
+                  disabled={isSubmitted}
                 />
               </div>
 
@@ -484,7 +479,8 @@ export default function SubmitDocumentPage() {
                     <button
                       type="button"
                       onClick={handleAddressSearch}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 whitespace-nowrap"
+                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 whitespace-nowrap disabled:opacity-50"
+                      disabled={isSubmitted}
                     >
                       주소검색
                     </button>
@@ -502,6 +498,7 @@ export default function SubmitDocumentPage() {
                     onChange={(e) => setFormData({ ...formData, addressDetail: e.target.value })}
                     className={staffUi.inputClass()}
                     placeholder="상세주소를 입력하세요"
+                    disabled={isSubmitted}
                   />
                 </div>
               </div>
@@ -515,6 +512,7 @@ export default function SubmitDocumentPage() {
                   value={formData.bank}
                   onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
                   className={staffUi.inputClass()}
+                  disabled={isSubmitted}
                 >
                   <option value="">은행을 선택하세요</option>
                   {banks.map((bank) => (
@@ -536,6 +534,7 @@ export default function SubmitDocumentPage() {
                   onChange={(e) => setFormData({ ...formData, accountHolder: e.target.value })}
                   className={staffUi.inputClass()}
                   placeholder="예금주를 입력하세요"
+                  disabled={isSubmitted}
                 />
               </div>
 
@@ -550,6 +549,7 @@ export default function SubmitDocumentPage() {
                   onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value.replace(/[^\d-]/g, '') })}
                   className={staffUi.inputClass()}
                   placeholder="계좌번호를 입력하세요"
+                  disabled={isSubmitted}
                 />
               </div>
 
@@ -561,6 +561,7 @@ export default function SubmitDocumentPage() {
                     checked={isTaxInvoice}
                     onChange={(e) => setIsTaxInvoice(e.target.checked)}
                     className="w-4 h-4 rounded border-gray-300"
+                    disabled={isSubmitted}
                   />
                   <span className="text-sm font-medium text-gray-700">세금계산서로 신청할게요</span>
                 </label>
@@ -664,55 +665,25 @@ export default function SubmitDocumentPage() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-800">주민등록표등본</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-[64px] justify-end">
                   {!documents.registration.file ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleFileSelect('camera', 'registration')}
-                        className="p-1.5 text-gray-600 hover:text-blue-600"
-                      >
-                        📷
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleFileSelect('upload', 'registration')}
-                        className="p-1.5 text-gray-600 hover:text-blue-600"
-                      >
-                        📁
-                      </button>
-                    </>
+                    <button type="button" onClick={() => handleFileSelect('registration')} className="p-1.5 text-gray-600 hover:text-blue-600" disabled={isSubmitted}>📤</button>
                   ) : (
                     <span className="text-green-600 font-bold">✓</span>
                   )}
                 </div>
               </div>
 
-              {/* 신분증 (한 장이면 라벨 변경) */}
+              {/* 신분증 */}
               <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg h-12">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-800">
                     {isCombinedIdBank ? '신분증 및 통장사본' : '신분증'}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-[64px] justify-end">
                   {!documents.idCard.file ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleFileSelect('camera', 'idCard')}
-                        className="p-1.5 text-gray-600 hover:text-blue-600"
-                      >
-                        📷
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleFileSelect('upload', 'idCard')}
-                        className="p-1.5 text-gray-600 hover:text-blue-600"
-                      >
-                        📁
-                      </button>
-                    </>
+                    <button type="button" onClick={() => handleFileSelect('idCard')} className="p-1.5 text-gray-600 hover:text-blue-600" disabled={isSubmitted}>📤</button>
                   ) : (
                     <span className="text-green-600 font-bold">✓</span>
                   )}
@@ -726,24 +697,9 @@ export default function SubmitDocumentPage() {
                     통장 사본
                   </p>
                 </div>
-                <div className="flex items-center gap-2 min-w-[64px]">
+                <div className="flex items-center gap-2 min-w-[64px] justify-end">
                   {!isCombinedIdBank && !documents.bankbook.file ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleFileSelect('camera', 'bankbook')}
-                        className="p-1.5 text-gray-600 hover:text-blue-600"
-                      >
-                        📷
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleFileSelect('upload', 'bankbook')}
-                        className="p-1.5 text-gray-600 hover:text-blue-600"
-                      >
-                        📁
-                      </button>
-                    </>
+                    <button type="button" onClick={() => handleFileSelect('bankbook')} className="p-1.5 text-gray-600 hover:text-blue-600" disabled={isSubmitted}>📤</button>
                   ) : !isCombinedIdBank && documents.bankbook.file ? (
                     <span className="text-green-600 font-bold">✓</span>
                   ) : (
@@ -755,20 +711,20 @@ export default function SubmitDocumentPage() {
 
             {/* 제출 버튼 */}
             <div className="pt-4 border-t border-gray-200">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isSubmitted}
                 className={staffUi.buttonClass.primary}
               >
-                {isSubmitting ? '제출 중...' : '제출하기'}
+                {isSubmitting ? '제출 중...' : isSubmitted ? '서류 제출 완료' : '제출하기'}
               </button>
             </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+      </div>
     </>
   );
 }

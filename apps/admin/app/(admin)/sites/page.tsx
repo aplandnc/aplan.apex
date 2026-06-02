@@ -358,6 +358,26 @@ export default function SitesPage() {
     const infodeskId = (form.infodesk_id ?? "").trim() || null;
     const infodeskPw = (form.infodesk_pw ?? "").trim() || null;
 
+    // 인포데스크 ID 중복 체크
+    if (infodeskId) {
+      const query = supabase
+        .from("sites")
+        .select("id")
+        .eq("infodesk_id", infodeskId);
+
+      if (editingId) {
+        query.neq("id", editingId);
+      }
+
+      const { data: existing } = await query.maybeSingle();
+
+      if (existing) {
+        setError("인포데스크 ID를 변경해주세요(타현장과 중복).");
+        setSaving(false);
+        return;
+      }
+    }
+
     const payload: Record<string, any> = {
       code: name,
       name,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 // ── 타입 ──
 interface SiteInfo { id: string; name: string; }
@@ -22,6 +23,10 @@ interface StaffInfo {
 interface StaffOption {
   id: string; display_name: string; hq: string | null; team: string | null;
   rank: string | null; phone: string | null; phone_index: string | null;
+}
+interface CarSearchResult {
+  id: string; hq: string | null; team: string | null; name: string; rank: string | null;
+  car_model: string | null; car_color: string | null; car_number: string | null;
 }
 
 // ── 상수 ──
@@ -82,6 +87,7 @@ const INITIAL_FORM = {
 };
 
 export default function TypeReservedPage() {
+  const router = useRouter();
   const [site, setSite] = useState<SiteInfo | null>(null);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [reservedList, setReservedList] = useState<ReservedVisitor[]>([]);
@@ -102,6 +108,10 @@ export default function TypeReservedPage() {
   const [allStaffList, setAllStaffList] = useState<StaffInfo[]>([]);
   const [isStaffLoading, setIsStaffLoading] = useState(false);
   const [clock, setClock] = useState("");
+  const [showCarModal, setShowCarModal] = useState(false);
+  const [carSearchKeyword, setCarSearchKeyword] = useState("");
+  const [carSearchResults, setCarSearchResults] = useState<CarSearchResult[]>([]);
+  const [isCarSearching, setIsCarSearching] = useState(false);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("info_site");
@@ -128,6 +138,23 @@ export default function TypeReservedPage() {
       finally { setIsStaffLoading(false); }
     })();
   }, [site]);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("info_site");
+    document.cookie = "apex-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    router.replace("/");
+  };
+
+  const handleCarSearch = async () => {
+    if (!site || !carSearchKeyword.trim()) return;
+    setIsCarSearching(true);
+    try {
+      const res = await fetch(`/api/car-search?site_id=${site.id}&car_number=${encodeURIComponent(carSearchKeyword.trim())}`);
+      const data = await res.json();
+      if (res.ok) setCarSearchResults(data.results || []);
+    } catch (err) { console.error(err); }
+    finally { setIsCarSearching(false); }
+  };
 
   const loadRecentVisits = useCallback(async () => {
     if (!site) return;
@@ -314,6 +341,7 @@ export default function TypeReservedPage() {
         <div className="flex items-center gap-3">
           <span className="px-3 py-1 bg-blue-50 border border-blue-100 rounded-full text-xs text-blue-600 font-semibold">📍 {site.name}</span>
           <span className="text-sm text-gray-400 tabular-nums">{clock}</span>
+          <button onClick={handleLogout} className="px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-xs text-gray-600 font-medium hover:bg-gray-200 transition-colors">로그아웃</button>
         </div>
       </header>
 
@@ -471,8 +499,9 @@ export default function TypeReservedPage() {
 
         {/* ===== 오른쪽 ===== */}
         <section className="flex flex-col overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-200 bg-white shrink-0">
+          <div className="px-5 py-3 border-b border-gray-200 bg-white shrink-0 flex items-center justify-between">
             <h2 className="text-base font-bold flex items-center gap-2">🪪 직원 조회 <span className="text-xs text-gray-400 font-normal ml-1">{allStaffList.length}명</span></h2>
+            <button onClick={() => { setShowCarModal(true); setCarSearchKeyword(""); setCarSearchResults([]); }} className="px-3 py-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg hover:bg-emerald-600 transition-colors">🚗 차량검색</button>
           </div>
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="px-5 pt-4 pb-1 shrink-0 flex flex-col gap-2">
@@ -502,6 +531,50 @@ export default function TypeReservedPage() {
           </div>
         </section>
       </main>
+
+      {/* 차량검색 모달 */}
+      {showCarModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowCarModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="text-base font-bold">🚗 차량 검색</h3>
+              <button onClick={() => setShowCarModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+            </div>
+            <div className="p-5">
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  placeholder="차량번호 뒤 4자리"
+                  maxLength={4}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
+                  value={carSearchKeyword}
+                  onChange={(e) => setCarSearchKeyword(e.target.value.replace(/[^0-9]/g, ""))}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCarSearch(); }}
+                  autoFocus
+                />
+                <button onClick={handleCarSearch} disabled={isCarSearching || !carSearchKeyword.trim()} className="px-5 py-2.5 bg-emerald-500 text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 disabled:opacity-50 transition-colors">검색</button>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {isCarSearching ? (
+                  <div className="text-center text-gray-400 py-8">검색 중...</div>
+                ) : carSearchResults.length === 0 ? (
+                  <div className="text-center text-gray-300 py-8">
+                    <span className="text-2xl block mb-1">🚗</span>
+                    <span className="text-sm">{carSearchKeyword ? "검색 결과 없음" : "차량번호를 입력하세요"}</span>
+                  </div>
+                ) : (
+                  carSearchResults.map((r) => (
+                    <div key={r.id} className="px-4 py-3 border border-gray-200 rounded-lg mb-2 bg-gray-50">
+                      <div className="text-sm font-medium text-gray-800">{[fmtHq(r.hq), fmtTeam(r.team), r.name, r.rank].filter(Boolean).join(" ")}</div>
+                      <div className="text-xs text-emerald-600 mt-1 font-medium">{[r.car_model, r.car_color, r.car_number].filter(Boolean).join(" · ")}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

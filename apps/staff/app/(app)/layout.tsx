@@ -29,8 +29,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       />
 
       {/* 메인 콘텐츠 */}
-      <main className="flex-1 min-h-0 pb-4 overflow-y-auto">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
+        <div className="max-w-7xl mx-auto min-h-full">
           {children}
         </div>
       </main>

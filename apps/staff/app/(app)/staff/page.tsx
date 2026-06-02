@@ -184,7 +184,7 @@ export default function StaffHomePage() {
   };
 
   return (
-    <div className={`w-full max-w-md mx-auto p-4 bg-white ${staffUi.text.body}`}>
+    <div className={`w-full max-w-md mx-auto p-4 min-h-full bg-white ${staffUi.text.body}`}>
       <header className="mb-8 mt-4 px-2">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
           {userName ? `${userName}님, 안녕하세요!` : "반갑습니다"}
