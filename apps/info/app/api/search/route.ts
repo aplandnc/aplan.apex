@@ -11,6 +11,10 @@ function serviceClient() {
   });
 }
 
+function getKoreanDate() {
+  return new Date().toLocaleString("sv-SE", { timeZone: "Asia/Seoul" }).slice(0, 10);
+}
+
 /**
  * POST /api/search
  * body: { site_id, keyword, type: "visitor" | "staff" | "staff_all" | "recent_visits" }
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     // ── 오늘 방문 전체 (집계용) ──
     if (type === "today_visits") {
-      const today = date || new Date().toISOString().slice(0, 10);
+      const today = date || getKoreanDate();
 
       const { data: visitData, error: visitErr } = await srv
         .from("visitor_guest")

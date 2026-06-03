@@ -11,6 +11,10 @@ function serviceClient() {
   });
 }
 
+function getKoreanDate() {
+  return new Date().toLocaleString("sv-SE", { timeZone: "Asia/Seoul" }).slice(0, 10);
+}
+
 /**
  * POST /api/visit
  * body: { site_id, guest_name, phone, visit_type, visit_cnt, staff_uuid? }
@@ -34,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await srv.from("visitor_guest").insert({
       site_id,
-      visit_date: new Date().toISOString().slice(0, 10),
+      visit_date: getKoreanDate(),
       visit_type: visit_type || "지명",
       guest_name: guest_name.trim(),
       phone: phone.trim(),

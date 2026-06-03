@@ -11,6 +11,10 @@ function serviceClient() {
   });
 }
 
+function getKoreanDate() {
+  return new Date().toLocaleString("sv-SE", { timeZone: "Asia/Seoul" }).slice(0, 10);
+}
+
 /**
  * GET /api/visitor-count?site_id=xxx
  * 오늘 방문자 집계 조회
@@ -23,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     const srv = serviceClient();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getKoreanDate();
 
     const { data, error } = await srv
       .from("visitor_count")

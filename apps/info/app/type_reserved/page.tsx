@@ -39,6 +39,8 @@ const VISIT_TYPES = ["지명", "워킹", "기타"] as const;
 const STAFF_EMOJIS = ["👨", "👩", "🧑", "👨‍💼", "👩‍💼", "🧑‍💼", "👷", "👷‍♀️", "🧑‍🔧", "👨‍🔧", "👩‍🔧", "🧑‍💻", "👨‍💻", "👩‍💻"];
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
+const getKoreanDate = () => new Date().toLocaleString("sv-SE", { timeZone: "Asia/Seoul" }).slice(0, 10);
+
 const getStaffEmoji = (id: string) => {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
@@ -197,7 +199,7 @@ export default function TypeReservedPage() {
   const loadTodayVisits = useCallback(async () => {
     if (!site) return;
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getKoreanDate();
       const res = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: site.id, keyword: "", type: "today_visits", date: today }) });
       const data = await res.json();
       if (res.ok) setTodayVisits(data.visits || []);
@@ -265,7 +267,7 @@ export default function TypeReservedPage() {
     setShowStaffDropdown(false);
   };
   const fillFromVisit = (item: VisitRecord) => {
-    setForm({ guest_name: item.guest_name, phone: item.phone, visit_type: item.visit_type || "지명", visit_cnt: item.visit_cnt || 1, staff_input: item.staff_name || "", staff_uuid: item.staff_uuid, staff_hq: item.staff_hq || "", staff_team: item.staff_team || "", staff_rank: item.staff_rank || "" });
+    setForm({ guest_name: item.guest_name, phone: item.phone, visit_type: "지명", visit_cnt: item.visit_cnt || 1, staff_input: item.staff_name || "", staff_uuid: item.staff_uuid, staff_hq: item.staff_hq || "", staff_team: item.staff_team || "", staff_rank: item.staff_rank || "" });
     setShowStaffDropdown(false);
   };
 
