@@ -430,6 +430,9 @@ export default function RegisterPage() {
                   />
                 </div>
               </div>
+              {!noCar && (form.car_number?.trim().length ?? 0) > 0 && (form.car_number?.trim().length ?? 0) < 7 && (
+                <p className="text-red-500 text-xs -mt-1">차량번호 전체를 입력해주세요</p>
+              )}
 
               <div className="flex items-center gap-2 -mt-2">
                 <input id="noCar" type="checkbox" checked={noCar} onChange={e => setNoCar(e.target.checked)} className={staffUi.form.checkbox} />
