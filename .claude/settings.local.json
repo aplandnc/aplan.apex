@@ -16,7 +16,10 @@
       "WebFetch(domain:supabase.com)",
       "Bash(pnpm --filter @apex/info build:*)",
       "Bash(ls:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)"
     ]
   }
 }
