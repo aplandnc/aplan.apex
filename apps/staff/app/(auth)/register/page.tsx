@@ -173,7 +173,8 @@ export default function RegisterPage() {
   const showSalesFields = form.staff_type === '영업사원';
   const showContactFields = showRankField || showSalesFields;
 
-  const carFilledAll = Boolean(form.car_model?.trim()) && Boolean(form.car_color?.trim()) && Boolean(form.car_number?.trim());
+  const carNumberValid = (form.car_number?.trim().length ?? 0) >= 7;
+  const carFilledAll = Boolean(form.car_model?.trim()) && Boolean(form.car_color?.trim()) && carNumberValid;
   const carValid = noCar || carFilledAll;
   const siteValid = Boolean(form.site_id);
   const nameValid = Boolean(form.name?.trim());
@@ -418,14 +419,15 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div className={staffUi.form.field}>
-                  <label className={staffUi.form.label}>번호</label>
+                  <label className={staffUi.form.label}>차량번호</label>
                   <input
                     type="text"
                     value={form.car_number || ''}
                     disabled={noCar}
-                    onChange={e => setForm({ ...form, car_number: e.target.value.replace(/\s/g, '') })}
+                    onChange={e => setForm({ ...form, car_number: e.target.value.replace(/\s/g, '').slice(0, 9) })}
                     className={staffUi.inputClass(noCar)}
-                    placeholder="번호"
+                    placeholder="차량번호"
+                    maxLength={9}
                   />
                 </div>
               </div>
