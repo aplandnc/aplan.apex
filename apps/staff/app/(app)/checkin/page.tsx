@@ -100,6 +100,7 @@ export default function AttendanceCheckPage() {
     let isMounted = true;
     let siteDataForGps: SiteInfo | null = null;
 
+    // GPS 보정: 다중 측정 + Accuracy 필터링
     const gpsPromise = new Promise<{ lat: number; lng: number } | null>((resolve) => {
       if (!("geolocation" in navigator)) {
         if (isMounted) {
@@ -110,24 +111,104 @@ export default function AttendanceCheckPage() {
         return;
       }
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const pos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          if (isMounted) setCurrentPosition(pos);
-          resolve(pos);
-        },
-        (error) => {
-          console.error("GPS 오류:", error);
+      // GPS 보정 설정
+      const GPS_CONFIG = {
+        maxAccuracy: 50,        // 이 값(미터) 이상의 부정확한 위치는 무시
+        goodAccuracy: 20,       // 이 값 이하면 충분히 정확하므로 조기 종료
+        maxDuration: 5000,      // 최대 수집 시간 (5초)
+        minSamples: 2,          // 최소 샘플 수
+      };
+
+      interface GpsSample {
+        lat: number;
+        lng: number;
+        accuracy: number;
+        timestamp: number;
+      }
+
+      const samples: GpsSample[] = [];
+      let watchId: number | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let resolved = false;
+
+      const finalize = () => {
+        if (resolved) return;
+        resolved = true;
+
+        if (watchId !== null) {
+          navigator.geolocation.clearWatch(watchId);
+        }
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+        }
+
+        if (samples.length === 0) {
           if (isMounted) {
             setErrorMsg("위치 정보를 가져올 수 없습니다. GPS를 켜주세요.");
             setGpsLoading(false);
           }
           resolve(null);
+          return;
+        }
+
+        // 가장 정확한(accuracy가 낮은) 샘플 선택
+        const bestSample = samples.reduce((best, current) =>
+          current.accuracy < best.accuracy ? current : best
+        );
+
+        console.log(`GPS 보정: ${samples.length}개 샘플 중 최적값 선택 (accuracy: ${bestSample.accuracy.toFixed(1)}m)`);
+
+        const pos = { lat: bestSample.lat, lng: bestSample.lng };
+        if (isMounted) setCurrentPosition(pos);
+        resolve(pos);
+      };
+
+      // 타임아웃 설정
+      timeoutId = setTimeout(() => {
+        console.log(`GPS: ${GPS_CONFIG.maxDuration}ms 타임아웃, ${samples.length}개 샘플 수집됨`);
+        finalize();
+      }, GPS_CONFIG.maxDuration);
+
+      // watchPosition으로 연속 측정
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+
+          // Accuracy 필터링: 부정확한 값은 무시
+          if (accuracy > GPS_CONFIG.maxAccuracy) {
+            console.log(`GPS 샘플 무시: accuracy ${accuracy.toFixed(1)}m > ${GPS_CONFIG.maxAccuracy}m`);
+            return;
+          }
+
+          samples.push({
+            lat: latitude,
+            lng: longitude,
+            accuracy: accuracy,
+            timestamp: Date.now(),
+          });
+
+          console.log(`GPS 샘플 추가: accuracy ${accuracy.toFixed(1)}m (총 ${samples.length}개)`);
+
+          // 충분히 정확한 값을 얻으면 조기 종료
+          if (accuracy <= GPS_CONFIG.goodAccuracy && samples.length >= GPS_CONFIG.minSamples) {
+            console.log(`GPS: 충분히 정확한 위치 획득 (${accuracy.toFixed(1)}m)`);
+            finalize();
+          }
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+        (error) => {
+          console.error("GPS 오류:", error);
+          // 에러가 발생해도 기존 샘플이 있으면 사용
+          if (samples.length > 0) {
+            finalize();
+          } else if (isMounted && !resolved) {
+            resolved = true;
+            if (timeoutId) clearTimeout(timeoutId);
+            setErrorMsg("위치 정보를 가져올 수 없습니다. GPS를 켜주세요.");
+            setGpsLoading(false);
+            resolve(null);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     });
 
