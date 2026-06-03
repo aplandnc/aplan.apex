@@ -213,9 +213,9 @@ export default function RegisterPage() {
       };
 
       if (staffRowId) {
-        await supabase.from('users_staff').update({ kakao_id: authUser.id, ...finalForm, status: 'pending', approved_at: null, rejected_reason: null }).eq('id', staffRowId);
+        await supabase.from('users_staff').update({ kakao_id: authUser.id, ...finalForm, status: 'pending', is_active: true, approved_at: null, rejected_reason: null }).eq('id', staffRowId);
       } else {
-        await supabase.from('users_staff').insert({ kakao_id: authUser.id, ...finalForm, status: 'pending', rejected_reason: null });
+        await supabase.from('users_staff').insert({ kakao_id: authUser.id, ...finalForm, status: 'pending', is_active: true, rejected_reason: null });
       }
       setRejectedReason('');
       setStaffGate('pending');
