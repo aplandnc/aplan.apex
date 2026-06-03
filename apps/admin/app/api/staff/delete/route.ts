@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabase
       .from("users_staff")
-      .update({ status: "deleted" })
+      .delete()
       .eq("id", id);
 
     if (error) {

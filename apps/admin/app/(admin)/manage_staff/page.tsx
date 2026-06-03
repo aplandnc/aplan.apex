@@ -19,10 +19,9 @@ const SALES_RANKS = ["총괄", "팀장", "부장", "차장", "실장", "과장",
 const HQ_LIST = Array.from({ length: 11 }, (_, i) => `${i}본부`);
 const TEAM_LIST = Array.from({ length: 21 }, (_, i) => `${i}팀`);
 
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  approved: { label: "활성", color: "text-green-600" },
+const APPROVAL_STATUS_MAP: Record<string, { label: string; color: string }> = {
+  approved: { label: "승인", color: "text-green-600" },
   rejected: { label: "반려", color: "text-red-600" },
-  inactive: { label: "비활성", color: "text-gray-400" },
   pending: { label: "대기", color: "text-yellow-600" },
 };
 
@@ -42,6 +41,7 @@ interface Staff {
   name: string | null;
   sales_name: string | null;
   status: string | null;
+  is_active: boolean | null;
   doc_submitted: boolean;
   pledge_submitted: boolean;
 }
@@ -108,9 +108,37 @@ function SelectCell({
   );
 }
 
+function BooleanSelectCell({
+  getValue,
+  row,
+  column,
+  table,
+}: CellContext<Staff, unknown>) {
+  const currentValue = getValue() as boolean | null;
+
+  const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value === "true";
+    (table.options.meta as TableMeta).updateBooleanData(row.index, column.id, val);
+  };
+
+  return (
+    <select
+      value={currentValue === true ? "true" : currentValue === false ? "false" : ""}
+      onChange={onChange}
+      className={`w-full border-0 bg-transparent px-1 py-2 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 rounded cursor-pointer ${
+        currentValue === true ? "text-green-600" : currentValue === false ? "text-gray-400" : ""
+      }`}
+    >
+      <option value="true">활성</option>
+      <option value="false">비활성</option>
+    </select>
+  );
+}
+
 // ── 테이블 메타 타입 ──
 interface TableMeta {
   updateData: (rowIndex: number, columnId: string, value: string) => void;
+  updateBooleanData: (rowIndex: number, columnId: string, value: boolean) => void;
   sites: Site[];
 }
 
@@ -149,9 +177,9 @@ export default function StaffManagePage() {
     // 직원 목록
     const { data: staffData, error: staffError } = await supabase
       .from("users_staff")
-      .select("id, site_id, staff_type, hq, team, rank, name, sales_name, status")
+      .select("id, site_id, staff_type, hq, team, rank, name, sales_name, status, is_active")
       .eq("site_id", selectedSiteId)
-      .in("status", ["approved", "pending", "rejected", "inactive"])
+      .in("status", ["approved", "pending", "rejected"])
       .order("created_at", { ascending: false });
 
     if (staffError || !staffData) {
@@ -227,6 +255,39 @@ export default function StaffManagePage() {
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [staffList, selectedSiteId]
+  );
+
+  // boolean 셀 업데이트
+  const updateBooleanData = React.useCallback(
+    async (rowIndex: number, columnId: string, value: boolean) => {
+      const staff = staffList[rowIndex];
+      if (!staff) return;
+
+      const cellKey = `${staff.id}-${columnId}`;
+      setSavingCells((prev) => new Set(prev).add(cellKey));
+
+      setStaffList((prev) =>
+        prev.map((row, i) => (i === rowIndex ? { ...row, [columnId]: value } : row))
+      );
+
+      const { error } = await supabase
+        .from("users_staff")
+        .update({ [columnId]: value })
+        .eq("id", staff.id);
+
+      if (error) {
+        console.error("저장 실패:", error);
+        fetchStaffList();
+      }
+
+      setSavingCells((prev) => {
+        const next = new Set(prev);
+        next.delete(cellKey);
+        return next;
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [staffList]
   );
 
   // soft delete via API route
@@ -333,18 +394,23 @@ export default function StaffManagePage() {
       },
       {
         accessorKey: "status",
+        header: "승인",
+        size: 70,
+        cell: ({ getValue }) => {
+          const val = (getValue() as string) ?? "";
+          const mapped = APPROVAL_STATUS_MAP[val] ?? { label: val, color: "text-gray-500" };
+          return (
+            <div className={`text-center text-xs font-semibold ${mapped.color} py-2`}>
+              {mapped.label}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "is_active",
         header: "상태",
         size: 90,
-        cell: (info) =>
-          SelectCell({
-            ...info,
-            options: [
-              { value: "approved", label: "활성" },
-              { value: "inactive", label: "비활성" },
-              { value: "rejected", label: "반려" },
-            ],
-            displayFn: (val) => STATUS_MAP[val]?.label ?? val,
-          }),
+        cell: BooleanSelectCell,
       },
       {
         accessorKey: "doc_submitted",
@@ -398,6 +464,7 @@ export default function StaffManagePage() {
     getCoreRowModel: getCoreRowModel(),
     meta: {
       updateData,
+      updateBooleanData,
       sites,
     } as TableMeta,
   });

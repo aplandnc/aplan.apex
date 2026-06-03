@@ -21,7 +21,7 @@ export default function PendingPage() {
 
       if (!userData) {
         router.push('/register');
-      } else if (userData.approved) {
+      } else if (userData.status === 'approved') {
         router.push('/staff');
       } else {
         setChecking(false);

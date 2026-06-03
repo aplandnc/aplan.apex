@@ -81,7 +81,7 @@ export async function middleware(req: NextRequest) {
   // 6) users_staff 데이터 확인
   const { data: userData } = await supabase
     .from("users_staff")
-    .select("status")
+    .select("status, is_active")
     .eq("kakao_id", user.id)
     .single();
 
@@ -101,12 +101,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/register", req.url));
   }
 
-  // 9) 승인 완료 → 루트 접근 시 /staff로 리다이렉트
+  // 9) 비활성 직원 → /login (메시지 표시)
+  if (userData.is_active === false) {
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("inactive", "true");
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // 10) 승인 완료 → 루트 접근 시 /staff로 리다이렉트
   if (pathname === "/" || pathname === "") {
     return NextResponse.redirect(new URL("/staff", req.url));
   }
 
-  // 10) 그 외 경로는 통과
+  // 11) 그 외 경로는 통과
   return res;
 }
 

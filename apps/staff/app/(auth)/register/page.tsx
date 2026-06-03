@@ -19,7 +19,6 @@ type StaffStatus = 'pending' | 'approved' | 'rejected' | 'inactive' | string | n
 type StaffRowForGate = {
   id: string;
   status?: StaffStatus;
-  approved?: boolean | null;
   rejected_reason?: string | null;
   name?: string | null;
   phone?: string | null;
@@ -112,7 +111,7 @@ export default function RegisterPage() {
         }
         const { data: row, error } = await supabase
           .from('users_staff')
-          .select('id, status, approved, rejected_reason, site_id, staff_type, name, phone, rank, hq, team, sales_name, car_model, car_color, car_number')
+          .select('id, status, rejected_reason, site_id, staff_type, name, phone, rank, hq, team, sales_name, car_model, car_color, car_number')
           .eq('kakao_id', authUser.id)
           .maybeSingle();
 
@@ -126,9 +125,9 @@ export default function RegisterPage() {
 
         const typedRow = row as StaffRowForGate;
         setStaffRowId(String(typedRow.id ?? '') || null);
-        const status: StaffStatus = typedRow.status ?? (typedRow.approved ? 'approved' : 'pending');
+        const status: StaffStatus = typedRow.status ?? 'pending';
 
-        if (status === 'approved' || typedRow.approved) {
+        if (status === 'approved') {
           setStaffGate('approved');
           router.replace('/staff');
           return;

@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { supabaseAppClient } from "@apex/config";
 import { staffUi } from "@apex/ui/styles/staff";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const isInactive = searchParams.get("inactive") === "true";
   const [loading, setLoading] = useState(false);
 
   // 페이지 로드시 오래된 supabase 쿠키 전부 삭제
@@ -68,6 +71,13 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-4">
+          {isInactive && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-2">
+              <p className="text-red-700 text-sm font-medium text-center">
+                비활성 상태입니다.<br />관리자에게 문의해 주세요.
+              </p>
+            </div>
+          )}
           <button
             onClick={handleKakaoLogin}
             disabled={loading}
