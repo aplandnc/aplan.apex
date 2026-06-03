@@ -229,19 +229,28 @@ export default function StaffManagePage() {
     [staffList, selectedSiteId]
   );
 
-  // soft delete
+  // soft delete via API route
   const handleDelete = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
-    const { error } = await supabase
-      .from("users_staff")
-      .update({ status: "deleted" })
-      .eq("id", id);
+    try {
+      const res = await fetch("/api/staff/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
 
-    if (error) {
-      console.error("삭제 실패:", error);
-    } else {
+      if (!res.ok) {
+        const data = await res.json();
+        console.error("삭제 실패:", data.error);
+        alert("삭제 실패: " + (data.error || "알 수 없는 오류"));
+        return;
+      }
+
       setStaffList((prev) => prev.filter((s) => s.id !== id));
+    } catch (error) {
+      console.error("삭제 실패:", error);
+      alert("삭제 중 오류가 발생했습니다.");
     }
   };
 
@@ -325,16 +334,17 @@ export default function StaffManagePage() {
       {
         accessorKey: "status",
         header: "상태",
-        size: 70,
-        cell: ({ getValue }) => {
-          const val = (getValue() as string) ?? "";
-          const mapped = STATUS_MAP[val] ?? { label: val, color: "text-gray-500" };
-          return (
-            <div className={`text-center text-xs font-semibold ${mapped.color} py-2`}>
-              {mapped.label}
-            </div>
-          );
-        },
+        size: 90,
+        cell: (info) =>
+          SelectCell({
+            ...info,
+            options: [
+              { value: "approved", label: "활성" },
+              { value: "inactive", label: "비활성" },
+              { value: "rejected", label: "반려" },
+            ],
+            displayFn: (val) => STATUS_MAP[val]?.label ?? val,
+          }),
       },
       {
         accessorKey: "doc_submitted",
