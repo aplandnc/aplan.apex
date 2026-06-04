@@ -61,15 +61,8 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (staffError || !staff) {
-    console.log("❓ 직원 테이블에 없는 유저입니다. 가입 페이지로 이동합니다.");
-    const registerResponse = NextResponse.redirect(new URL("/register", url.origin));
-    
-    // 세션 쿠키 이식
-    response.cookies.getAll().forEach((c) => {
-      registerResponse.cookies.set(c.name, c.value, { path: "/" });
-    });
-    registerResponse.cookies.set("kakao_id", user.id, { path: "/" });
-    return registerResponse;
+    console.log("❓ 직원 테이블에 없는 유저입니다. middleware에서 /register로 리다이렉트됩니다.");
+    return response;
   }
 
   // 5. 로그인 성공 및 쿠키 설정
