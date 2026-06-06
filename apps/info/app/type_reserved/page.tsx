@@ -368,12 +368,10 @@ export default function TypeReservedPage() {
           <span className="text-[10px] text-gray-400 tabular-nums mt-0.5">등록 {formatDateTimeFull(item.created_at || "")}</span>
         </div>
       </div>
-      {item.memo && (
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <span className="text-[11px] text-gray-400 mr-2">메모</span>
-          <span className="text-sm text-gray-700">{item.memo}</span>
-        </div>
-      )}
+      <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-2">
+        <span className="px-1.5 py-0.5 bg-gray-800 text-white text-[10px] font-bold rounded shrink-0">메모</span>
+        <span className="text-sm text-gray-700 truncate">{item.memo || "-"}</span>
+      </div>
     </div>
   );
 

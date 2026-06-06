@@ -102,13 +102,31 @@ export async function POST(req: NextRequest) {
         .select("id, hq, team, name, rank, sales_name, phone")
         .eq("site_id", site_id)
         .eq("staff_type", "영업사원")
-        .order("hq", { ascending: true })
-        .order("team", { ascending: true })
-        .order("name", { ascending: true });
+        .eq("is_approved", true)
+        .eq("is_active", true);
 
       if (error) throw error;
 
-      const results = (data || []).map((s) => ({
+      // 숫자순 정렬 (1, 2, 3, ... 10, 11 순서)
+      const sortNumeric = (a: string | null, b: string | null) => {
+        if (!a && !b) return 0;
+        if (!a) return 1;
+        if (!b) return -1;
+        const numA = parseInt(a, 10);
+        const numB = parseInt(b, 10);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.localeCompare(b);
+      };
+
+      const sorted = (data || []).sort((a, b) => {
+        const hqCmp = sortNumeric(a.hq, b.hq);
+        if (hqCmp !== 0) return hqCmp;
+        const teamCmp = sortNumeric(a.team, b.team);
+        if (teamCmp !== 0) return teamCmp;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+
+      const results = sorted.map((s) => ({
         ...s,
         phone_index: s.phone ? s.phone.slice(-4) : null,
         display_name: s.sales_name || s.name,
