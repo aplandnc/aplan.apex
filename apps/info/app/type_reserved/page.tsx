@@ -423,7 +423,7 @@ export default function TypeReservedPage() {
         </div>
       </header>
 
-      <main className="flex-1 grid grid-cols-[6fr_2fr_2fr] min-h-0">
+      <main className="flex-1 grid grid-cols-[6fr_2.5fr_1.5fr] min-h-0">
         {/* ===== 왼쪽 ===== */}
         <section className="flex flex-col border-r border-gray-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-200 bg-white shrink-0">
