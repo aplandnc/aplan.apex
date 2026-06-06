@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
         .select("id, hq, team, name, rank, sales_name, phone")
         .eq("site_id", site_id)
         .eq("staff_type", "영업사원")
-        .eq("is_approved", true)
+        .eq("status", "approved")
         .eq("is_active", true);
 
       if (error) throw error;
