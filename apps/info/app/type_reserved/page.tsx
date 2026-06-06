@@ -423,7 +423,7 @@ export default function TypeReservedPage() {
         </div>
       </header>
 
-      <main className="flex-1 grid grid-cols-[7fr_1.5fr_1.5fr] min-h-0">
+      <main className="flex-1 grid grid-cols-[6.5fr_2fr_1.5fr] min-h-0">
         {/* ===== 왼쪽 ===== */}
         <section className="flex flex-col border-r border-gray-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-200 bg-white shrink-0">
@@ -437,7 +437,7 @@ export default function TypeReservedPage() {
                 <button onClick={handleSearch} disabled={isSearching} className="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">검색</button>
               </div>
             </div>
-            <div className="flex-1 grid grid-cols-[4fr_3fr] gap-3 min-h-0">
+            <div className="flex-1 grid grid-cols-[3.5fr_3fr] gap-3 min-h-0">
               <div className="flex flex-col border border-gray-200 rounded-lg bg-white overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50 shrink-0">
                   <span className="text-sm font-bold">📋 예약 방문자</span>
@@ -652,46 +652,46 @@ export default function TypeReservedPage() {
 
       {/* 집계 모달 */}
       {showStatsModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowStatsModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-              <h3 className="text-base font-bold">📊 오늘 방문 집계</h3>
-              <button onClick={() => setShowStatsModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowStatsModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-5 border-b-2 border-gray-200">
+              <h3 className="text-lg font-bold">📊 오늘 방문 집계</h3>
+              <button onClick={() => setShowStatsModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
-            <div className="p-5">
-              <table className="w-full text-sm">
+            <div className="p-6">
+              <table className="w-full text-base">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="py-2 text-left text-gray-500 font-medium">시간대</th>
-                    <th className="py-2 text-center text-blue-600 font-medium" colSpan={2}>지명</th>
-                    <th className="py-2 text-center text-violet-600 font-medium" colSpan={2}>워킹</th>
+                  <tr className="border-b-2 border-gray-300">
+                    <th className="py-3 text-left text-gray-600 font-bold">시간대</th>
+                    <th className="py-3 text-center text-blue-600 font-bold" colSpan={2}>지명</th>
+                    <th className="py-3 text-center text-violet-600 font-bold" colSpan={2}>워킹</th>
                   </tr>
-                  <tr className="border-b border-gray-100 text-xs text-gray-400">
+                  <tr className="border-b-2 border-gray-200 text-sm text-gray-500">
                     <th></th>
-                    <th className="py-1 text-center">건</th>
-                    <th className="py-1 text-center">명</th>
-                    <th className="py-1 text-center">건</th>
-                    <th className="py-1 text-center">명</th>
+                    <th className="py-2 text-center font-semibold">팀</th>
+                    <th className="py-2 text-center font-semibold">명</th>
+                    <th className="py-2 text-center font-semibold">팀</th>
+                    <th className="py-2 text-center font-semibold">명</th>
                   </tr>
                 </thead>
                 <tbody>
                   {TIME_SLOTS.map((slot, idx) => (
-                    <tr key={slot} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-2 text-gray-600">{slot}</td>
-                      <td className="py-2 text-center text-blue-600 font-medium">{visitStats[idx].jm_cnt || "-"}</td>
-                      <td className="py-2 text-center text-blue-600">{visitStats[idx].jm_ppl || "-"}</td>
-                      <td className="py-2 text-center text-violet-600 font-medium">{visitStats[idx].wk_cnt || "-"}</td>
-                      <td className="py-2 text-center text-violet-600">{visitStats[idx].wk_ppl || "-"}</td>
+                    <tr key={slot} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                      <td className="py-3 text-gray-700 font-medium">{slot}</td>
+                      <td className="py-3 text-center text-blue-600 font-semibold">{visitStats[idx].jm_cnt || "-"}</td>
+                      <td className="py-3 text-center text-blue-500">{visitStats[idx].jm_ppl || "-"}</td>
+                      <td className="py-3 text-center text-violet-600 font-semibold">{visitStats[idx].wk_cnt || "-"}</td>
+                      <td className="py-3 text-center text-violet-500">{visitStats[idx].wk_ppl || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-gray-200 font-bold">
-                    <td className="py-3 text-gray-800">합계</td>
-                    <td className="py-3 text-center text-blue-600">{totalStats.jm_cnt}</td>
-                    <td className="py-3 text-center text-blue-600">{totalStats.jm_ppl}</td>
-                    <td className="py-3 text-center text-violet-600">{totalStats.wk_cnt}</td>
-                    <td className="py-3 text-center text-violet-600">{totalStats.wk_ppl}</td>
+                  <tr className="border-t-2 border-gray-400 font-bold bg-gray-50">
+                    <td className="py-4 text-gray-800 text-lg">합계</td>
+                    <td className="py-4 text-center text-blue-600 text-lg">{totalStats.jm_cnt}</td>
+                    <td className="py-4 text-center text-blue-600 text-lg">{totalStats.jm_ppl}</td>
+                    <td className="py-4 text-center text-violet-600 text-lg">{totalStats.wk_cnt}</td>
+                    <td className="py-4 text-center text-violet-600 text-lg">{totalStats.wk_ppl}</td>
                   </tr>
                 </tfoot>
               </table>
