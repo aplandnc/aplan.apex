@@ -423,7 +423,7 @@ export default function TypeReservedPage() {
         </div>
       </header>
 
-      <main className="flex-1 grid grid-cols-[6fr_2fr_2fr] min-h-0">
+      <main className="flex-1 grid grid-cols-[7fr_1.5fr_1.5fr] min-h-0">
         {/* ===== 왼쪽 ===== */}
         <section className="flex flex-col border-r border-gray-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-200 bg-white shrink-0">
@@ -437,7 +437,7 @@ export default function TypeReservedPage() {
                 <button onClick={handleSearch} disabled={isSearching} className="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">검색</button>
               </div>
             </div>
-            <div className="flex-1 grid grid-cols-[6fr_4fr] gap-3 min-h-0">
+            <div className="flex-1 grid grid-cols-[4fr_3fr] gap-3 min-h-0">
               <div className="flex flex-col border border-gray-200 rounded-lg bg-white overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50 shrink-0">
                   <span className="text-sm font-bold">📋 예약 방문자</span>
