@@ -352,27 +352,28 @@ export default function TypeReservedPage() {
   const ReservedCard = ({ item }: { item: ReservedVisitor }) => (
     <div onClick={() => fillFromReserved(item)} className="p-3 rounded-lg cursor-pointer border border-gray-200 hover:border-blue-400 hover:bg-blue-50/40 transition-colors mb-2">
       <div className="flex items-stretch h-[52px]">
-        <div className="flex flex-col justify-center w-1/4 min-w-0 pr-2">
+        <div className="flex flex-col justify-center w-1/3 min-w-0 pr-2">
           <div className="flex items-center gap-1.5 mb-0.5"><span className="text-sm">👤</span><span className="text-sm font-bold truncate">{item.guest_name}</span></div>
           <div className="flex items-center gap-1.5"><span className="text-sm">📞</span><span className="text-sm text-gray-600 truncate">{item.phone}</span></div>
         </div>
         <div className="w-px bg-gray-200 shrink-0" />
-        <div className="flex flex-col justify-center w-1/4 min-w-0 px-3">
+        <div className="flex flex-col justify-center w-1/3 min-w-0 px-3">
           <div className="text-sm text-gray-700 truncate">{fmtHq(item.staff_hq)} {fmtTeam(item.staff_team)}</div>
           <div className="text-sm text-gray-700 truncate"><span className="font-bold">{item.staff_name || "-"}</span> {item.staff_rank || ""}</div>
         </div>
         <div className="w-px bg-gray-200 shrink-0" />
-        <div className="flex flex-col justify-center w-1/4 min-w-0 px-3">
-          <span className="text-[11px] text-gray-400">메모</span>
-          <span className="text-sm text-gray-700 truncate">{item.memo || "-"}</span>
-        </div>
-        <div className="w-px bg-gray-200 shrink-0" />
-        <div className="flex flex-col justify-center items-center w-1/4 min-w-0 pl-2">
+        <div className="flex flex-col justify-center items-center w-1/3 min-w-0 pl-2">
           <span className="text-[11px] text-gray-400">방문예정</span>
           <span className="text-sm font-semibold tabular-nums text-blue-600">{formatDateFull(item.visit_plan)}</span>
           <span className="text-[10px] text-gray-400 tabular-nums mt-0.5">등록 {formatDateTimeFull(item.created_at || "")}</span>
         </div>
       </div>
+      {item.memo && (
+        <div className="mt-2 pt-2 border-t border-gray-100">
+          <span className="text-[11px] text-gray-400 mr-2">메모</span>
+          <span className="text-sm text-gray-700">{item.memo}</span>
+        </div>
+      )}
     </div>
   );
 
