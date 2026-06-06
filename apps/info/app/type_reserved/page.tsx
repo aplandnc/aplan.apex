@@ -577,9 +577,9 @@ export default function TypeReservedPage() {
 
         {/* ===== 오른쪽 ===== */}
         <section className="flex flex-col overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-200 bg-white shrink-0 flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-gray-200 bg-white shrink-0 flex items-center justify-between">
             <h2 className="text-base font-bold flex items-center gap-2">🪪 직원 조회 <span className="text-xs text-gray-400 font-normal ml-1">{allStaffList.length}명</span></h2>
-            <button onClick={() => { setShowCarModal(true); setCarSearchKeyword(""); setCarSearchResults([]); }} className="px-3 py-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg hover:bg-emerald-600 transition-colors">🚗 차량검색</button>
+            <button onClick={() => { setShowCarModal(true); setCarSearchKeyword(""); setCarSearchResults([]); }} className="px-2 py-1 bg-emerald-500 text-white text-xs font-semibold rounded-lg hover:bg-emerald-600 transition-colors">🚗 차량검색</button>
           </div>
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="px-5 pt-4 pb-1 shrink-0 flex flex-col gap-2">
