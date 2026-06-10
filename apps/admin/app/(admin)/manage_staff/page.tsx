@@ -16,8 +16,8 @@ import { adminUi } from "@apex/ui/styles/admin";
 const STAFF_TYPES = ["기획", "상담사", "TM", "큐레이터", "아르바이트", "홍보단", "영업사원", "기타"] as const;
 const RANKS = ["팀장", "부장", "차장", "실장", "과장", "대리"];
 const SALES_RANKS = ["총괄", "팀장", "부장", "차장", "실장", "과장", "대리", "사원", "기타"];
-const HQ_LIST = Array.from({ length: 11 }, (_, i) => `${i}본부`);
-const TEAM_LIST = Array.from({ length: 21 }, (_, i) => `${i}팀`);
+const HQ_LIST = Array.from({ length: 11 }, (_, i) => String(i));
+const TEAM_LIST = Array.from({ length: 21 }, (_, i) => String(i));
 
 const APPROVAL_STATUS_MAP: Record<string, { label: string; color: string }> = {
   approved: { label: "승인", color: "text-green-600" },
@@ -351,7 +351,7 @@ export default function StaffManagePage() {
         cell: (info) =>
           SelectCell({
             ...info,
-            options: HQ_LIST.map((h) => ({ value: h, label: h })),
+            options: HQ_LIST.map((h) => ({ value: h, label: `${h}본부` })),
           }),
       },
       {
@@ -361,7 +361,7 @@ export default function StaffManagePage() {
         cell: (info) =>
           SelectCell({
             ...info,
-            options: TEAM_LIST.map((t) => ({ value: t, label: t })),
+            options: TEAM_LIST.map((t) => ({ value: t, label: `${t}팀` })),
           }),
       },
       {
