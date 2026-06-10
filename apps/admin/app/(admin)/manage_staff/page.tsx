@@ -125,7 +125,7 @@ function BooleanSelectCell({
     <select
       value={currentValue === true ? "true" : currentValue === false ? "false" : ""}
       onChange={onChange}
-      className={`w-full border-0 bg-transparent px-1 py-2 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 rounded cursor-pointer ${
+      className={`w-full border-0 bg-transparent px-1 py-2 text-xs text-center font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 rounded cursor-pointer ${
         currentValue === true ? "text-green-600" : currentValue === false ? "text-gray-400" : ""
       }`}
     >

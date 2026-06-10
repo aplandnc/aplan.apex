@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAppClient } from '@apex/config';
-import { type StaffType, type RegisterFormData, type Site, type KakaoUserMetadata } from '@apex/auth';
+import { type StaffType, type RegisterFormData, type Site } from '@apex/auth';
 import { staffUi } from '@apex/ui/styles/staff';
 
 const STAFF_TYPES: StaffType[] = ['기획', '상담사', 'TM', '큐레이터', '아르바이트', '홍보단', '영업사원', '기타'];
@@ -87,15 +87,7 @@ export default function RegisterPage() {
     else setSites(data ?? []);
   };
 
-  const loadKakaoName = async () => {
-    const { data } = await supabase.auth.getUser();
-    const user = data?.user;
-    const name = (user?.user_metadata as KakaoUserMetadata)?.name;
-    if (name) setForm(prev => ({ ...prev, name: name.replace(/\s/g, '') }));
-  };
-
   useEffect(() => {
-    loadKakaoName();
     loadSites();
   }, []);
 

@@ -9,6 +9,7 @@ type StaffRow = {
   id: string;
   kakao_id: string | null;
   name: string | null;
+  sales_name: string | null;
   phone: string | null;
   staff_type: string | null;
   site_id: string | null;
@@ -221,7 +222,7 @@ export default function ApprovalPage() {
     try {
       const { data, error } = await supabase
         .from("users_staff")
-        .select("id, kakao_id, name, phone, staff_type, site_id, created_at, hq, team, rank, status, rejected_reason")
+        .select("id, kakao_id, name, sales_name, phone, staff_type, site_id, created_at, hq, team, rank, status, rejected_reason")
         .eq("status", "pending")
         .eq("site_id", selectedSiteId)
         .order("created_at", { ascending: false });
@@ -266,6 +267,7 @@ export default function ApprovalPage() {
       },
       { key: "staff_type", header: "직무구분", render: (r) => r.staff_type ?? "-" },
       { key: "name", header: "이름", render: (r) => r.name ?? "-" },
+      { key: "sales_name", header: "영업명", render: (r) => r.sales_name ?? "-" },
       { key: "hq", header: "본부", render: (r) => r.hq ?? "-" },
       { key: "team", header: "팀", render: (r) => r.team ?? "-" },
       { key: "rank", header: "직급", render: (r) => r.rank ?? "-" },
