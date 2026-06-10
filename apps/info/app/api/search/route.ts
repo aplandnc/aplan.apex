@@ -36,15 +36,13 @@ export async function POST(req: NextRequest) {
     const kw = keyword?.trim() || "";
     const isPhone = /^\d{1,4}$/.test(kw);
 
-    // ── 최근 등록 5건 ──
+    // ── 최근 등록 5건 (created_at 기준 최신순) ──
     if (type === "recent_visits") {
-      // created_at이 없을 수 있으므로 id desc로 정렬 (auto increment/uuid v7 등 최신순)
       const { data: visitData, error: visitErr } = await srv
         .from("visitor_guest")
-        .select("id, guest_name, phone, phone_index, visit_date, visit_type, visit_cnt, staff_uuid")
+        .select("id, guest_name, phone, phone_index, visit_date, visit_type, visit_cnt, staff_uuid, created_at")
         .eq("site_id", site_id)
-        .order("visit_date", { ascending: false })
-        .order("id", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(5);
 
       if (visitErr) throw visitErr;
