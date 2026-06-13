@@ -120,6 +120,17 @@ export default function CheckVisitorPage() {
     });
   };
 
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
     <div className={staffUi.layout.page}>
       <div className={staffUi.layout.main}>
@@ -180,6 +191,9 @@ export default function CheckVisitorPage() {
                             방문예정 {formatDate(visitor.visit_plan)}
                           </span>
                         </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          등록일시: {formatDateTime(visitor.created_at)}
+                        </p>
                         {visitor.memo && (
                           <p className="text-xs text-gray-500 mt-2 bg-white p-2 rounded">
                             💬 {visitor.memo}
@@ -188,10 +202,9 @@ export default function CheckVisitorPage() {
                       </div>
                       <button
                         onClick={() => setDeleteTarget(visitor.id)}
-                        className="ml-2 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        aria-label="삭제"
+                        className="ml-2 px-3 py-1.5 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
                       >
-                        🗑️
+                        삭제
                       </button>
                     </div>
                   </div>
