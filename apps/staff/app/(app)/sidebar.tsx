@@ -218,14 +218,24 @@ export default function Sidebar({
             </div>
 
             {canVisitor && (
-              <Link
-                href="/submitVisitor"
-                className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
-                onClick={closeSidebar}
-              >
-                <span className="text-2xl">👥</span>
-                <span className="font-medium">방문예정 등록</span>
-              </Link>
+              <>
+                <Link
+                  href="/submitVisitor"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
+                  onClick={closeSidebar}
+                >
+                  <span className="text-2xl">👥</span>
+                  <span className="font-medium">방문예정 등록</span>
+                </Link>
+                <Link
+                  href="/checkVisitor"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-700 transition-all active:scale-95"
+                  onClick={closeSidebar}
+                >
+                  <span className="text-2xl">📋</span>
+                  <span className="font-medium">내 고객 관리</span>
+                </Link>
+              </>
             )}
 
             {canDocs && (
