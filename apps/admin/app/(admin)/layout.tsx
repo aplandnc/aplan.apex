@@ -123,6 +123,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { type: "category", label: "직원관리" },
     { type: "item", name: "승인 관리", path: "/approval", icon: "✅" },
     { type: "item", name: "직원 관리", path: "/manage_staff", icon: "👥" },
+    { type: "item", name: "출근현황", path: "/attendance_status", icon: "📊" },
     { type: "item", name: "서류 관리", path: "/documents", icon: "💼" },
 
     { type: "category", label: "관리자 설정" },
