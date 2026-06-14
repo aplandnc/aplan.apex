@@ -15,6 +15,9 @@ type StaffMember = {
   id: string;
   name: string;
   staff_type: string | null;
+  hq: string | null;
+  team: string | null;
+  rank: string | null;
 };
 
 type AttendanceRecord = {
@@ -30,7 +33,7 @@ export default function AttendanceStatusPage() {
   const [selectedSiteId, setSelectedSiteId] = React.useState<string>("");
   const [staffList, setStaffList] = React.useState<StaffMember[]>([]);
   const [attendanceRecords, setAttendanceRecords] = React.useState<AttendanceRecord[]>([]);
-  const [todayCount, setTodayCount] = React.useState(0);
+  const [todayAttendanceByType, setTodayAttendanceByType] = React.useState<Record<string, number>>({});
   const [toast, setToast] = React.useState<string | null>(null);
   const [processing, setProcessing] = React.useState(false);
 
@@ -95,10 +98,11 @@ export default function AttendanceStatusPage() {
       // 직원 목록 조회 (승인된 직원만)
       const { data: staffData } = await supabase
         .from("users_staff")
-        .select("id, name, staff_type")
+        .select("id, name, staff_type, hq, team, rank")
         .eq("site_id", selectedSiteId)
         .eq("status", "approved")
-        .order("staff_type")
+        .order("hq")
+        .order("team")
         .order("name");
 
       // 출근 기록 조회
@@ -115,9 +119,15 @@ export default function AttendanceStatusPage() {
       setStaffList(staff);
       setAttendanceRecords(attendance);
 
-      // 오늘 출근 수 계산
+      // 오늘 출근 수 계산 (직무구분별)
       const todayAttendance = attendance.filter((a) => a.work_date === today);
-      setTodayCount(todayAttendance.length);
+      const byType: Record<string, number> = {};
+      todayAttendance.forEach((a) => {
+        const staffMember = staff.find((s) => s.id === a.user_id);
+        const type = staffMember?.staff_type || "기타";
+        byType[type] = (byType[type] || 0) + 1;
+      });
+      setTodayAttendanceByType(byType);
 
       setLoading(false);
     };
@@ -169,10 +179,14 @@ export default function AttendanceStatusPage() {
         setToast(`${staff.name} ${currentMonth}/${day} 출근 추가`);
       }
 
-      // 오늘 출근 수 업데이트
+      // 오늘 출근 수 업데이트 (직무구분별)
       const today = getTodayKST();
       if (dateStr === today) {
-        setTodayCount((prev) => (exists ? prev - 1 : prev + 1));
+        const type = staff.staff_type || "기타";
+        setTodayAttendanceByType((prev) => ({
+          ...prev,
+          [type]: Math.max(0, (prev[type] || 0) + (exists ? -1 : 1)),
+        }));
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : "처리 실패";
@@ -235,30 +249,47 @@ export default function AttendanceStatusPage() {
         </div>
       </div>
 
-      {/* 월 선택 + 오늘 출근 요약 */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handlePrevMonth}
-            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
-          >
-            ◀
-          </button>
-          <div className="text-lg font-bold text-gray-900">
-            {currentYear}년 {currentMonth}월
-          </div>
-          <button
-            onClick={handleNextMonth}
-            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
-          >
-            ▶
-          </button>
+      {/* 월 선택 (가운데 정렬) */}
+      <div className="flex items-center justify-center gap-4 mb-6">
+        <button
+          onClick={handlePrevMonth}
+          className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+        >
+          ◀
+        </button>
+        <div className="text-lg font-bold text-gray-900 min-w-[140px] text-center">
+          {currentYear}년 {currentMonth}월
         </div>
+        <button
+          onClick={handleNextMonth}
+          className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+        >
+          ▶
+        </button>
+      </div>
 
-        {/* 오늘 출근 카드 */}
-        <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl shadow">
-          <div className="text-sm opacity-90">오늘 출근</div>
-          <div className="text-2xl font-bold">{todayCount}명</div>
+      {/* 오늘 출근 카드 (직무구분별) */}
+      <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-4 rounded-xl shadow mb-6">
+        <div className="text-sm opacity-90 mb-2">오늘 출근</div>
+        <div className="flex items-center gap-6 flex-wrap">
+          {Object.keys(todayAttendanceByType).length === 0 ? (
+            <div className="text-xl font-bold">0명</div>
+          ) : (
+            <>
+              {Object.entries(todayAttendanceByType).map(([type, count]) => (
+                <div key={type} className="flex items-center gap-2">
+                  <span className="text-sm opacity-80">{type}</span>
+                  <span className="text-xl font-bold">{count}명</span>
+                </div>
+              ))}
+              <div className="border-l border-white/30 pl-4 ml-2">
+                <span className="text-sm opacity-80">총</span>
+                <span className="text-xl font-bold ml-2">
+                  {Object.values(todayAttendanceByType).reduce((a, b) => a + b, 0)}명
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -273,8 +304,20 @@ export default function AttendanceStatusPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                  <th className="sticky left-0 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-700 border-r border-gray-200 min-w-[140px]">
-                    직무 / 이름
+                  <th className="sticky left-0 z-10 bg-gray-50 px-2 py-3 text-center font-semibold text-gray-700 border-r border-gray-200 min-w-[60px]">
+                    직무
+                  </th>
+                  <th className="px-2 py-3 text-center font-semibold text-gray-700 min-w-[60px]">
+                    본부
+                  </th>
+                  <th className="px-2 py-3 text-center font-semibold text-gray-700 min-w-[60px]">
+                    팀
+                  </th>
+                  <th className="px-2 py-3 text-center font-semibold text-gray-700 min-w-[70px]">
+                    성명
+                  </th>
+                  <th className="px-2 py-3 text-center font-semibold text-gray-700 border-r border-gray-200 min-w-[60px]">
+                    직급
                   </th>
                   {days.map((day) => (
                     <th
@@ -295,11 +338,13 @@ export default function AttendanceStatusPage() {
                     key={staff.id}
                     className={`border-b border-gray-100 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}
                   >
-                    <td className="sticky left-0 bg-inherit px-3 py-2 border-r border-gray-200">
+                    <td className="sticky left-0 z-10 bg-inherit px-2 py-2 text-center border-r border-gray-200">
                       <span className="text-xs text-blue-600 font-medium">{staff.staff_type ?? "-"}</span>
-                      <span className="mx-1 text-gray-300">|</span>
-                      <span className="font-medium text-gray-900">{staff.name}</span>
                     </td>
+                    <td className="px-2 py-2 text-center text-sm text-gray-700">{staff.hq ?? "-"}</td>
+                    <td className="px-2 py-2 text-center text-sm text-gray-700">{staff.team ?? "-"}</td>
+                    <td className="px-2 py-2 text-center font-medium text-gray-900">{staff.name}</td>
+                    <td className="px-2 py-2 text-center text-sm text-gray-700 border-r border-gray-200">{staff.rank ?? "-"}</td>
                     {days.map((day) => {
                       const attended = hasAttendance(staff.id, day);
                       return (
